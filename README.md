@@ -43,7 +43,7 @@ $ make
 
 Step 3: Configuration and Run
 
-Edit ```experimentconfig.sh``` and ```blockchainconfig``` files to match your paths\
+Edit ```experimentconfig.sh``` file to match your paths\
 Then run an experiment
 
 ```
