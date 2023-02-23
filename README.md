@@ -48,5 +48,5 @@ Then run an experiment
 
 ```
 cd geth-argos/HelloNeighbor
-./starter -r -s
+./starter -s
 ```
