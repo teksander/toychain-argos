@@ -76,7 +76,7 @@ def init():
     fsm = FiniteStateMachine(robot, start = States.START)
 
     # /* Init TCP for enode */
-    tcp = TCP_server(w3.enode, w3.ip, 4000+int(me.id), unlocked = True)
+    tcp = TCP_server(w3.enode, w3.host, 4000+int(me.id), unlocked = True)
 
     # /* Initialize logmodules*/
     #######################################################################
@@ -108,10 +108,10 @@ def controlstep():
                 peer.enode = tcp.request('127.0.0.1', 4000+int(peer.id))
                 w3.add_peer(peer.enode)
 
-        for peer in w3.peers.values():
-            
-            if peer['id'] not in [peer.id for peer in erb.peers]:
-                w3.remove_peer(peer['enode'])
+        # temp = copy.copy(w3.peers.values())
+        # for peer in temp:
+        #     if peer['id'] not in [peer.id for peer in erb.peers]:
+        #         w3.remove_peer(peer['enode'])
 
          # Turn on LEDs according to geth Peers
         if len(w3.peers) == 0: 
@@ -144,7 +144,7 @@ def controlstep():
             w3.start_tcp()
             w3.start_mining()
 
-        fsm.setState(States.WALK, message = "Walking")
+        fsm.setState(States.WALK)
 
     #########################################################################################################
     #### State::WALK  
@@ -169,6 +169,7 @@ def reset():
     pass
 
 def destroy():
+    # w3.destroy_node()
     pass
 
 #########################################################################################################################
