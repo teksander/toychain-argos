@@ -33,7 +33,7 @@ Step 1: Clone the repo
 Step 2: Compile ARGoS-Python
 
 ```
-$ cd geth-argos/argos-python
+$ cd toychain-argos/argos-python
 $ git checkout temp
 $ mkdir build
 $ cd build
@@ -47,6 +47,6 @@ Edit ```experimentconfig.sh``` file to match your paths\
 Then run an experiment
 
 ```
-cd geth-argos/HelloNeighbor
+cd toychain-argos/HelloNeighbor
 ./starter -s
 ```
