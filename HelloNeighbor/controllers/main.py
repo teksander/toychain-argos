@@ -21,10 +21,8 @@ from statemachine import FiniteStateMachine, States
 
 from aux import *
 
-from PROJH402.src.Block import Block, create_block_from_list, block_to_list
+from PROJH402.src.ProofOfAuth import ProofOfAuthority
 from PROJH402.src.Node import Node
-from PROJH402.src.constants import LOCALHOST, MINING_DIFFICULTY
-from PROJH402.src.utils import compute_hash, verify_chain
 
 from loop_params import params as lp
 from control_params import params as cp
@@ -43,6 +41,7 @@ global clocks, counters, logs, txs
 clocks, counters, logs, txs = dict(), dict(), dict(), dict()
 
 clocks['peering']  = Timer(0.5)
+counters['timestep'] = 0
 
 ####################################################################################################################################################################################
 #### INIT STEP #####################################################################################################################################################################
@@ -55,13 +54,13 @@ def init():
     robot.variables.set_attribute("id", str(robotID))
 
     # /* Initialize submodules */
-
     #######################################################################
     # /* Init web3.py */
-    w3 = Node(robotID, robotIP, 1233+int(robotID), MINING_DIFFICULTY)
+    consensus = ProofOfAuthority()
+    w3 = Node(robotID, robotIP, 1233+int(robotID), consensus)
 
     # /* Init an instance of peer for this Pi-Puck */
-    me = Peer(robotID, robotIP, w3.enode, None)
+    me = Peer(robotID, robotIP, None, None)
 
     # /* Init E-RANDB
     erb = ERANDB(robot, cp['erbDist'] , cp['erbtFreq'])
@@ -75,8 +74,8 @@ def init():
     # /* Init Finite-State-Machine */
     fsm = FiniteStateMachine(robot, start = States.START)
 
-    # /* Init TCP for enode */
-    tcp = TCP_server(w3.enode, w3.host, 4000+int(me.id), unlocked = True)
+    # # /* Init TCP for enode */
+    # tcp = TCP_server(w3.enode, w3.host, 4000+int(me.id), unlocked = True)
 
     # /* Initialize logmodules*/
     #######################################################################
@@ -89,39 +88,35 @@ def init():
     robot.log = logging.getLogger('main')
     robot.log.setLevel(loglevel)
 
+###########################
+######## ROUTINES #########
+###########################
+
+def peering():
+
+    for peer in erb.peers:
+        if peer not in w3.peers.values():
+            w3.add_peer(enode(peer.id))
+
+    temp = copy.copy(w3.peers).values()
+    for peer in temp:
+        try:
+            if peer['id'] not in [str(p.id) for p in erb.peers]:
+                w3.remove_peer(peer['enode'])
+        except:
+            pass
+
+    # Turn on LEDs according to geth Peers
+    if   len(w3.peers) == 0: rgb.setLED(['black', 'black', 'black'])
+    elif len(w3.peers) == 1: rgb.setLED(['red',   'black', 'black'])
+    elif len(w3.peers) == 2: rgb.setLED(['red',   'black', 'red'])
+    elif len(w3.peers) >= 3: rgb.setLED(['red',   'red',   'red'])
+
 #########################################################################################################################
 #### CONTROL STEP #######################################################################################################
 #########################################################################################################################
-
 def controlstep():
     global clocks, counters, startFlag
-
-    ###########################
-    ######## ROUTINES #########
-    ###########################
-    
-    def peering():
-
-        for peer in erb.peers:
-
-            if peer.id not in [x['id'] for x in w3.peers.values()]:
-                peer.enode = tcp.request('127.0.0.1', 4000+int(peer.id))
-                w3.add_peer(peer.enode)
-
-        # temp = copy.copy(w3.peers.values())
-        # for peer in temp:
-        #     if peer['id'] not in [peer.id for peer in erb.peers]:
-        #         w3.remove_peer(peer['enode'])
-
-         # Turn on LEDs according to geth Peers
-        if len(w3.peers) == 0: 
-            rgb.setLED(['black','black','black'])
-        elif len(w3.peers) == 1:
-            rgb.setLED(['red', 'black', 'black'])
-        elif len(w3.peers) == 2:
-            rgb.setLED(['red', 'black', 'red'])
-        elif len(w3.peers) > 2:
-            rgb.setLED(['red','red','red'])
   
     ##############################
     ##### STATE-MACHINE STEP #####
@@ -138,7 +133,7 @@ def controlstep():
             robot.log.info('--//-- Starting Experiment --//--')
             startFlag = True 
 
-            for module in [erb, tcp] + list(logs.values()) + list(clocks.values()):
+            for module in [erb] + list(logs.values()) + list(clocks.values()):
                 module.start()
 
             w3.start_tcp()
@@ -176,94 +171,11 @@ def destroy():
 #########################################################################################################################
 #########################################################################################################################
 
+def enode(_id):
+    return "enode://%s@127.0.0.1:%s" % (_id, 1234+_id-1)
+
 def getEnodes():
     return [peer['enode'] for peer in w3.peers]
 
 def getIps():
     return [peer['ip'] for peer in w3.peers]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #########################################################################################################
-        #### Scout.EXPLORE
-        #########################################################################################################
-
-        # elif fsm.query(Scout.EXPLORE):
-
-        #     if clocks['block'].query():
-
-        #         # Confirm I am still scout
-        #         fsm.setState(States.PLAN, message = None)
-
-        #     else:
-
-        #         # Perform a random-walk 
-        #         rw.step()
-
-        #         # Look for resources
-        #         sensing()
-
-        #         # Transition state
-        #         if clocks['explore'].query(reset = False):
-
-        #             # Sucess exploration: Sell
-        #             if rb.buffer:
-        #                 fsm.setState(Scout.SELL, message = "Found %s" % len(rb))
-
-        #             # Unsucess exploration: Buy
-        #             else:
-        #                 clocks['buy'].reset()
-        #                 fsm.setState(States.ASSIGN, message = "Found %s" % len(rb))
-
-
-        #########################################################################################################
-        #### Scout.SELL
-        #########################################################################################################
-
-        # elif fsm.query(Scout.SELL):
-
-        #     # Navigate to market
-        #     if fsm.query(Recruit.HOMING, previous = True):
-        #         homing(to_drop = True)
-        #     else:
-        #         homing()
-
-        #     # Sell resource information  
-        #     if rb.buffer:
-        #         resource = rb.buffer.pop(-1)
-        #         print(resource._calldata)
-        #         sellHash = w3.sc.functions.updatePatch(*resource._calldata).transact()
-        #         txs['sell'] = Transaction(sellHash)
-        #         robot.log.info('Selling: %s', resource._desc)
-
-        #     # Transition state  
-        #     else:
-        #         if txs['sell'].query(3):
-        #             txs['sell'] = Transaction(None)
-        #             fsm.setState(States.ASSIGN, message = "Sell success")
-
-        #         elif txs['sell'].fail == True:    
-        #             txs['sell'] = Transaction(None)
-        #             fsm.setState(States.ASSIGN, message = "Sell failed")
-
-        #         elif txs['sell'].hash == None:
-        #             fsm.setState(States.ASSIGN, message = "None to sell")

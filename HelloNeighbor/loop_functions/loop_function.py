@@ -10,7 +10,7 @@ sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
              os.environ['EXPERIMENTFOLDER']+'/loop_functions', \
              os.environ['EXPERIMENTFOLDER']]
 
-from aux import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
+from aux import Vector2D, Logger, Timer, Accumulator, mydict
 
 from control_params import params as cp
 from loop_params import params as lp
@@ -36,18 +36,13 @@ CPU = getCPUPercent()
 global clocks, accums, logs, other
 clocks, accums, logs, other = dict(), dict(), dict(), dict()
 
-def init():
+clocks['simulation'] = Timer(10)
 
-    # Init robot parameters
-    for robot in allrobots:
-        robot.id = int(robot.variables.get_attribute("id"))
-        robot.ip = identifiersExtract(robot.id)
-        
-    
+def init():
     # Init logfiles for loop function
     file   = 'simulation.csv'
     header = ['TPS', 'RAM', 'CPU']
-    logs['simulation'] = Logger(log_folder+file, header, rate=10, ID = '0')
+    logs['simulation'] = Logger(log_folder+file, header, ID = '0')
 
     for log in logs.values():
         log.start()
@@ -58,10 +53,6 @@ def pre_step():
     # Tasks to perform on the first time step
     if not startFlag:
         startTime = time.time()
-    
-    # Tasks to perform for each robot
-    for robot in allrobots:
-        robot.variables.set_attribute("at", "")
 
 def post_step():
     global startFlag, clocks, accums
@@ -80,7 +71,7 @@ def post_step():
 def is_experiment_finished():
     global stopFlag
 
-    stopFlag = stopFlag or time.time() - startTime > lp['generic']['time_limit']
+    # stopFlag = stopFlag or time.time() - startTime > lp['generic']['time_limit']
 
     if stopFlag:
         print("Experiment has finished")

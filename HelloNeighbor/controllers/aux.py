@@ -7,6 +7,7 @@ from multiprocessing.connection import Listener, Client
 
 logger = logging.getLogger(__name__)
 
+
 class TxTimer:
     def __init__(self, rate, name = None):
         self.name = name
@@ -579,9 +580,9 @@ class Logger(object):
         if self.query():
             self.tStamp = time.time()
             try:
-                tString = str(round(self.tStamp-self.tStart, 3))
+                pTime = round(self.tStamp-self.tStart, 3)
                 pData = ' '.join([str(x) for x in data])
-                self.file.write('{} {} {}\n'.format(self.id, tString, pData))
+                self.file.write('{} {:.3f} {}\n'.format(self.id, pTime, pData))
                 self.latest = self.tStamp
             except:
                 pass

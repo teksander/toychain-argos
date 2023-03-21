@@ -14,7 +14,7 @@ export ARGOSFILE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.argos"
 export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.argosx"
 
 # [ARGOS]
-export NUM1=3
+export NUM1=25
 export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
 
 export TPS=10

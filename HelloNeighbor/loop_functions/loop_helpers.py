@@ -12,10 +12,6 @@ sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
 from aux import Vector2D
 from loop_params import params as lp
 
-for file in lp['files'].values():
-    open(file, 'w+').close()
-
-
 def is_in_circle(point, center, radius):
     dx = abs(point[0] - center[0])
     dy = abs(point[1] - center[1])
