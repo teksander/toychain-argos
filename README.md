@@ -33,12 +33,11 @@ Step 1: Clone the repo
 Step 2: Compile ARGoS-Python
 
 ```
-$ cd toychain-argos/argos-python
-$ git checkout temp
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
+cd toychain-argos/argos-python
+mkdir build
+cd build
+cmake ..
+make
 ```
 
 Step 3: Configuration and Run
