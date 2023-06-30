@@ -14,10 +14,10 @@ export ARGOSFILE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.argos"
 export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.argosx"
 
 # [ARGOS]
-export NUM1=25
+export NUM1=20
 export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
 
-export TPS=10
+export TPS=20
 export DENSITY="2"
 
 export NUMROBOTS=$(echo $NUM1 | bc)

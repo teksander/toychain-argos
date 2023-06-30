@@ -4,6 +4,7 @@ import math
 import logging
 import socket, threading
 from multiprocessing.connection import Listener, Client
+from PROJH402.src.utils import CustomTime
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class TxTimer:
         self.lock = False
 
     def query(self, step = True, reset = True):
-        if self.remaining() < 0:
+        if self.remaining() <= 0:
             if reset: self.reset() 
             return True
         else:
@@ -117,22 +118,23 @@ class Accumulator:
 
 class Timer:
     def __init__(self, rate = 0, name = None):
-        self.name = name
-        self.rate = rate
-        self.tick = time.time()
+
+        self.time  = CustomTime()
+        self.name  = name
+        self.rate  = rate
+        self.tick  = self.time.time()
         self.isLocked = False
 
     def query(self, reset = True):
-        if self.remaining() < 0:
-            if reset:
-                self.reset()
+        if self.remaining() <= 0:
+            if reset: self.reset()
             return True
         else:
             return False
 
     def remaining(self):
         if type(self.rate) is int or type(self.rate) is float:
-            return self.rate - (time.time() - self.tick)
+            return self.rate - (self.time.time() - self.tick)
         else:
             return 1
 
@@ -145,11 +147,11 @@ class Timer:
 
     def reset(self):
         if not self.isLocked:
-            self.tick = time.time()
+            self.tick = self.time.time()
         return self
 
     def start(self):
-        self.tick = time.time()
+        self.tick = self.time.time()
         self.isLocked = False
 
     def lock(self):
@@ -172,6 +174,7 @@ class TicToc(object):
         self.delay = delay      
         self.stime = time.time()  
         self.name = name
+        self.sleep = True
 
     def tic(self):
         self.stime = time.time()    
@@ -179,10 +182,10 @@ class TicToc(object):
     def toc(self):
         dtime = time.time() - self.stime
 
-        if not sleep:
+        if not self.sleep:
             print(round(dtime,3)) 
 
-        if sleep and dtime < self.delay:
+        if self.sleep and dtime < self.delay:
             time.sleep(self.delay - dtime)
         else:
             # logger.warning('{} Pendulum too Slow. Elapsed: {}'.format(self.name,dtime))

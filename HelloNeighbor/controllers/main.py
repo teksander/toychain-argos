@@ -3,9 +3,7 @@
 
 # /* Import Packages */
 #######################################################################
-import random, math, copy
-import time, sys, os
-import logging
+import sys, os
 
 sys.path += [os.environ['MAINFOLDER'], \
              os.environ['EXPERIMENTFOLDER']+'/controllers', \
@@ -16,15 +14,15 @@ sys.path += [os.environ['MAINFOLDER'], \
 from movement import RandomWalk
 from erandb import ERANDB
 from rgbleds import RGBLEDs
-from console import init_web3, Transaction
 from statemachine import FiniteStateMachine, States
 
 from aux import *
 
-from PROJH402.src.ProofOfAuth import ProofOfAuthority
 from PROJH402.src.Node import Node
+from PROJH402.src.consensus.ProofOfAuth import ProofOfAuthority
+from PROJH402.src.consensus.ProofOfWork import ProofOfWork
+from PROJH402.src.Transaction import Transaction
 
-from loop_params import params as lp
 from control_params import params as cp
 
 # /* Logging Levels for Console and File */
@@ -36,34 +34,35 @@ logtofile = False
 #######################################################################
 global startFlag
 startFlag = False
-
+# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(message)s', level=logging.ERROR)
 global clocks, counters, logs, txs
 clocks, counters, logs, txs = dict(), dict(), dict(), dict()
 
-clocks['peering']  = Timer(0.5)
-counters['timestep'] = 0
+clocks['peering'] = Timer(5)
+
+global robot
 
 ####################################################################################################################################################################################
 #### INIT STEP #####################################################################################################################################################################
 ####################################################################################################################################################################################
-
 def init():
     global w3, me, erb, rw, rgb, fsm, tcp
-    robotID = str(int(robot.variables.get_id()[2:])+1)
+    robotID = str(int(robot.variables.get_id()[2:]) + 1)
     robotIP = '127.0.0.1'
     robot.variables.set_attribute("id", str(robotID))
 
     # /* Initialize submodules */
     #######################################################################
+
     # /* Init web3.py */
-    consensus = ProofOfAuthority()
-    w3 = Node(robotID, robotIP, 1233+int(robotID), consensus)
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority())
 
     # /* Init an instance of peer for this Pi-Puck */
-    me = Peer(robotID, robotIP, None, None)
+    me = Peer(robotID, robotIP, w3.enode, None)
 
     # /* Init E-RANDB
-    erb = ERANDB(robot, cp['erbDist'] , cp['erbtFreq'])
+    erb = ERANDB(robot, cp['erbDist'], cp['erbtFreq'])
 
     # /* Init Random-Walk
     rw = RandomWalk(robot, cp['speed'])
@@ -72,10 +71,10 @@ def init():
     rgb = RGBLEDs(robot)
 
     # /* Init Finite-State-Machine */
-    fsm = FiniteStateMachine(robot, start = States.START)
+    fsm = FiniteStateMachine(robot, start=States.START)
 
-    # # /* Init TCP for enode */
-    # tcp = TCP_server(w3.enode, w3.host, 4000+int(me.id), unlocked = True)
+    global submodules_to_step
+    submodules_to_step  = [w3.time, erb]
 
     # /* Initialize logmodules*/
     #######################################################################
@@ -87,24 +86,29 @@ def init():
     logging.basicConfig(filename=log_folder+name, filemode='w+', format='[{} %(levelname)s %(name)s %(relativeCreated)d] %(message)s'.format(me.id))
     robot.log = logging.getLogger('main')
     robot.log.setLevel(loglevel)
-
+    
 ###########################
 ######## ROUTINES #########
 ###########################
 
 def peering():
 
-    for peer in erb.peers:
-        if peer not in w3.peers.values():
-            w3.add_peer(enode(peer.id))
+    # Collect current peer enodes
+    erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
 
-    temp = copy.copy(w3.peers).values()
-    for peer in temp:
+    # Add peers
+    for enode in erb_enodes-set(w3.peers):
         try:
-            if peer['id'] not in [str(p.id) for p in erb.peers]:
-                w3.remove_peer(peer['enode'])
-        except:
-            pass
+            w3.add_peer(enode)
+        except Exception as e:
+            raise e
+        
+    # Remove peers
+    for enode in set(w3.peers)-erb_enodes:
+        try:
+            w3.remove_peer(enode)
+        except Exception as e:
+            raise e
 
     # Turn on LEDs according to geth Peers
     if   len(w3.peers) == 0: rgb.setLED(['black', 'black', 'black'])
@@ -115,16 +119,34 @@ def peering():
 #########################################################################################################################
 #### CONTROL STEP #######################################################################################################
 #########################################################################################################################
+
 def controlstep():
     global clocks, counters, startFlag
   
     ##############################
     ##### STATE-MACHINE STEP #####
     ##############################
+    
+    #########################################################################################################
+    #### State::ALL
+    #########################################################################################################
+
+    # for module in submodules_to_step:
+    #     module.step()
+
+    for clock in list(clocks.values())+[w3]:
+        clock.time.step()
+
+    if clocks['peering'].query():
+        peering()
 
     #########################################################################################################
     #### State::START
     #########################################################################################################
+    # if is_new:
+    #     t = Transaction(w3.enode, enode, {"action": "add_k", "input": 1}, 0, timestamp=w3.custom_timer.time())
+    #     w3.send_transaction(t)
+
 
     if fsm.query(States.START):
         
@@ -151,11 +173,6 @@ def controlstep():
 
         rw.step()
 
-        # Perform the blockchain peering
-        if clocks['peering'].query():
-            peering()
-
-
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
 #########################################################################################################################
@@ -163,19 +180,10 @@ def controlstep():
 def reset():
     pass
 
+
 def destroy():
-    # w3.destroy_node()
-    pass
+    w3.destroy_node()
 
 #########################################################################################################################
 #########################################################################################################################
 #########################################################################################################################
-
-def enode(_id):
-    return "enode://%s@127.0.0.1:%s" % (_id, 1234+_id-1)
-
-def getEnodes():
-    return [peer['enode'] for peer in w3.peers]
-
-def getIps():
-    return [peer['ip'] for peer in w3.peers]
