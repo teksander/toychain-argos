@@ -64,7 +64,7 @@ export WINSIZE=5
 # [OTHER]
 export SEED=1500
 # export TIMELIMIT=100
-export LENGTH=5
+export LENGTH=500
 export SLEEPTIME=5
 export REPS=5
 export NOTES="Testing maxload 12 and resource params; limassign vs no limassign; regen 5 vs regen 10"

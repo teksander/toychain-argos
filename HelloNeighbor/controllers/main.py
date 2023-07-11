@@ -18,10 +18,10 @@ from statemachine import FiniteStateMachine, States
 
 from aux import *
 
-from PROJH402.src.Node import Node
-from PROJH402.src.consensus.ProofOfAuth import ProofOfAuthority
-from PROJH402.src.consensus.ProofOfWork import ProofOfWork
-from PROJH402.src.Transaction import Transaction
+from toychain.src.Node import Node
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
+from toychain.src.consensus.ProofOfWork import ProofOfWork
+from toychain.src.Transaction import Transaction
 
 from control_params import params as cp
 

@@ -24,12 +24,12 @@ from controllers.statemachine import *
 from controllers.control_params import params as cp
 from loop_functions.loop_params import params as lp
 
-from PROJH402.src.Node import Node
-from PROJH402.src.Block import Block, State
-from PROJH402.src.utils import gen_enode
+from toychain.src.Node import Node
+from toychain.src.Block import Block, State
+from toychain.src.utils import gen_enode
 
-from PROJH402.src.consensus.ProofOfAuth import ProofOfAuthority
-from PROJH402.src.Transaction import Transaction
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
+from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
 #######################################################################
