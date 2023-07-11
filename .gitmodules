@@ -1,6 +1,6 @@
 [submodule "toychain"]
 	path = PROJH402
-	url = https://github.com/uldenis/PROJH402.git
+	url = git@github.com:teksander/toychain-argos.git
 [submodule "argos-python"]
 	path = argos-python
 	url = git@github.com:KenN7/argos-python.git
