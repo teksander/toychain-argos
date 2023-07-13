@@ -49,8 +49,9 @@ export STARTDIM=$(echo "scale=3 ; $ARENADIM/5" | bc)
 export BLOCKPERIOD=2
 
 # [SC]
-export MAXWORKERS=1
-export LIMITASSIGN=0
+export MAXWORKERS=15
+export LIMITASSIGN=2
+
 export DEMAND_A=0
 export DEMAND_B=1000
 export REGENRATE=20
@@ -63,11 +64,11 @@ export WINSIZE=5
 
 # [OTHER]
 export SEED=1500
-# export TIMELIMIT=100
-export LENGTH=500
+export TIMELIMIT=100
+export LENGTH=5000
 export SLEEPTIME=5
 export REPS=5
-export NOTES="Testing maxload 12 and resource params; limassign vs no limassign; regen 5 vs regen 10"
+export NOTES="Variation of utility of the resource between 100 and 400"
 
 
 

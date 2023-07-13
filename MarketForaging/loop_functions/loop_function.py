@@ -191,7 +191,7 @@ def init():
     for robot in allrobots:
 
         robot.id = int(robot.variables.get_attribute("id"))
-        robot.ip = identifiersExtract(robot.id)
+        # robot.ip = identifiersExtract(robot.id)
         robot.variables.set_attribute("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
         
         if lp['patches']['known']:

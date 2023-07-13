@@ -19,8 +19,8 @@ from networkx.algorithms.shortest_paths.generic import shortest_path as get_main
 
 global tstart
 
-datadir = '/home/eksander/geth-argos/MarketForaging/results/data'
-plotdir = '/home/eksander/geth-argos/MarketForaging/results/plots/'
+datadir = '/home/eksander/toychain-argos/MarketForaging/results/data'
+plotdir = '/home/eksander/toychain-argos/MarketForaging/results/plots/'
 
 def tic():
     global tstart
@@ -72,7 +72,7 @@ def create_df(experiments, logfile, exclude_patterns = []):
 
 def get_param_df(df, param_dict, param, alias = None):
     df = df.groupby(['EXP','CFG','REP']).apply(lambda x: get_param(x, x.name , param_dict, param, alias))
-    return df
+    return df.reset_index(drop=True)
 
 def get_param(group, name, param_dict, param, alias):
     exp = name[0]

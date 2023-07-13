@@ -16,4 +16,4 @@ params['erbDist']    = 175
 
 # Maximum quantity of resource a robot can transport
 params['max_Q']       = 10
-params['entry_K']     = 0.15
+params['entry_K']     = 0.5

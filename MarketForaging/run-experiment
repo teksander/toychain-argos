@@ -79,7 +79,7 @@ run() {
 
 
 # DEFINE EXPERIMENT
-EXP=vary_util
+EXP=varyutil2
 config "REPS" 5
 config "LENGTH" 5000
 config "NOTES" "\"Variation of utility of the resource between 100 and 400\""

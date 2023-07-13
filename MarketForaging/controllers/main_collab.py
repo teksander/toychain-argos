@@ -183,7 +183,7 @@ class ResourceBuffer(object):
 
 class Trip(object):
 
-    def __init__(self):
+    def __init__(self, patch):
         self.tStart = w3.custom_timer.time()
         self.FC     = 0
         self.Q      = 0
@@ -191,7 +191,6 @@ class Trip(object):
         self.MC     = []
         self.TC     = 0
         self.ATC    = 0
-        patch  = w3.sc.getMyPatch(me.id)
         self.price = patch['util']*patch['epoch']['price']
         self.finished = False
         # self.price = 1000
@@ -273,6 +272,7 @@ def init():
     name =  'monitor.log'
     os.makedirs(os.path.dirname(log_folder+name), exist_ok=True) 
     logging.basicConfig(filename=log_folder+name, filemode='w+', format='[{} %(levelname)s %(name)s] %(message)s'.format(robotID))
+    logging.getLogger('sc').setLevel(20)
     logging.getLogger('w3').setLevel(70)
     logging.getLogger('poa').setLevel(70)
     robot.log = logging.getLogger()
@@ -636,8 +636,13 @@ def controlstep():
             else:
                 arrived = grouping(rb.best)
                 if arrived:
-                    Trip()
-                    fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
+                    my_patch = w3.sc.getMyPatch(me.id)
+                    if my_patch:
+                        rb.addResource(my_patch['json'], update_best = True)
+                        Trip(my_patch)
+                        fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
+                    else:
+                        fsm.setState(States.PLAN, message = None)
 
             if clocks['block'].query():
                 fsm.setState(States.PLAN, message = None)
@@ -850,6 +855,11 @@ def destroy():
         for key, value in w3.sc.state.items():
             print(f"{key}: {value}")
 
+        name   = 'sc.csv'
+        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
+        logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+
+
         name   = 'firm.csv'
         header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
@@ -888,6 +898,16 @@ def destroy():
                 len(block.data), 
                 0
                 ])
+            
+            logs['sc'].log(
+                [block.timestamp, 
+                block.height, 
+                block.hash, 
+                block.parent_hash, 
+                block.state.balances.get(me.id,0),
+                block.state.n
+                ])
+
         
     print('Killed robot '+ me.id)
 
