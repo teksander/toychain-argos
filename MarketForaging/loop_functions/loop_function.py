@@ -93,8 +93,8 @@ def generate_resource(n = 1, qualities = None, max_attempts = 500):
 
             # Generate a new resource position (fixed)
             if lp['patches']['distribution'] == 'fixed':
-                x = lp['patches']['x'][i]
-                y = lp['patches']['y'][i]
+                x = lp['patches']['x'][i] * lp['generic']['arena_size']
+                y = lp['patches']['y'][i] * lp['generic']['arena_size']
 
             # Generate a new resource position (uniform)
             elif lp['patches']['distribution'] == 'uniform':
@@ -184,8 +184,13 @@ def forage_rate(res, carried = 0):
 def init():
 
     # Init resources in the arena
+    total_count = 0
+    qualities   = []
     for quality, count in counts.items():
-        generate_resource(count, qualities = count*[quality])
+        total_count += count
+        qualities   += count*[quality]
+
+    generate_resource(total_count, qualities = qualities)
 
     # Init robot parameters
     for robot in allrobots:
@@ -194,8 +199,9 @@ def init():
         # robot.ip = identifiersExtract(robot.id)
         robot.variables.set_attribute("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
         
-        if lp['patches']['known']:
-            robot.variables.set_attribute("newResource", allresources[robot.id % len(allresources)]._json)
+    if lp['patches']['known']:
+        for i, robot in enumerate(random.sample(allrobots, total_count)):
+            robot.variables.set_attribute("newResource", allresources[i]._json)
     
     # Init logfiles for loop function
     file   = 'simulation.csv'
@@ -283,7 +289,8 @@ def pre_step():
 
         # Forage resources
         for robot in random.sample(other['foragers'][res], len(other['foragers'][res])):
-            clocks['forage'][robot].set(forage_rate(res, robot.variables.get_attribute("quantity")), reset=False)
+            carried = robot.variables.get_attribute("quantity")
+            clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
 
             if clocks['forage'][robot].query():
                 robot.variables.set_attribute("hasResource", res.quality)

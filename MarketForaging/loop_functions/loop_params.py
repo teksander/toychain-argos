@@ -46,15 +46,21 @@ params['patches'] = dict()
 # 									     'y_mu': 0.25 * params['generic']['arena_size'], 
 # 									     'x_sg': 0.15 * params['generic']['arena_size'], 
 # 									     'y_sg': 0.15 * params['generic']['arena_size']}]
+
+
 params['patches']['distribution'] = 'fixed' 
-params['patches']['x'] = [0.25*params['generic']['arena_size']]
-params['patches']['y'] = [0.25*params['generic']['arena_size']]
+
+params['patches']['x'] = [ 0.25]
+params['patches']['y'] = [ 0.25]
+
+# params['patches']['x'] = [ -0.25, 0.25]
+# params['patches']['y'] = [ 0.25, -0.25]
 
 params['patches']['respawn']   = False
 params['patches']['known']     = True
-params['patches']['radius']    = 0.30
-params['patches']['qtty_min']  = 100
-params['patches']['qtty_max']  = 100
+params['patches']['radius']    = 0.35
+params['patches']['qtty_min']  = 50
+params['patches']['qtty_max']  = 50
 params['patches']['dist_min']  = 1.5 * params['cache']['r'] 
 params['patches']['dist_max']  = 5 * params['cache']['r']
 
@@ -63,17 +69,18 @@ params['patches']['counts'] = {'red': 0, 'green': 0 , 'blue': 1, 'yellow': 0}
 params['patches']['radii']  = {k: params['patches']['radius'] for k in params['patches']['qualities']}
 
 # Parameters for resource economy
-params['patches']['utility']     = {'red': 1, 'green':  1, 'blue': 400, 'yellow': 1}
-params['patches']['forage_rate'] = {'red': 10, 'green':  8, 'blue': 0.5, 'yellow': 4}
-params['patches']['regen_rate']  = {'red': 1, 'green':  2, 'blue': 7, 'yellow': 6}
+params['patches']['utility']     = {'red': 1, 'green':  100, 'blue': 200, 'yellow': 250}
+params['patches']['forage_rate'] = {'red': 10, 'green':  8, 'blue': 1, 'yellow': 1.5}
+params['patches']['regen_rate']  = {'red': 1, 'green':  3, 'blue': 8, 'yellow': 6}
 
 params['patches']['dec_returns'] = dict()
 params['patches']['dec_returns']['func']   = 'linear'                       # constant, linear or logarithmic decreasing returns
 params['patches']['dec_returns']['thresh'] = params['patches']['qtty_max']  # qqty of resource before dec returns starts
-params['patches']['dec_returns']['slope']  = 0.5
+params['patches']['dec_returns']['slope']  = 1
 
 params['patches']['dec_returns']['func_robot']  = 'linear'                  # seconds each resource is slower than previous
-params['patches']['dec_returns']['slope_robot'] = 0
+params['patches']['dec_returns']['slope_robot'] = 1.5
+params['patches']['forage_together'] = True
 
 # params['patches']['dec_returns']['func_robot']  = 'exp'                  # seconds each resource is slower than previous
 # params['patches']['dec_returns']['slope_robot'] = 3

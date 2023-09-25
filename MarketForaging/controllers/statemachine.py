@@ -27,6 +27,7 @@ class States(Enum):
     JOIN   = 6
     LEAVE  = 7
     HOMING = 8
+    TRANSACT = 9
 
 stateList = list(Idle)+list(Scout)+list(Recruit)
 

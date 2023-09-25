@@ -62,7 +62,6 @@ market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp[
 cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
 
 global geth_peer_count
-previous_epoch_num = -1
 
 GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
 
@@ -132,37 +131,6 @@ class ResourceBuffer(object):
         else:
             return self.buffer.sort(key=lambda x: x.utility, reverse=True)
 
-    # if not self.is_in_circle(new_res.x, new_res.y):
-    # def is_in_circle(self,x, y):
-    #     for res in self.buffer:
-    #         if is_in_circle((x,y), (res.x, res.y), res.radius): 
-    #             return True
-    #     return False
-        
-    def getCount(self):
-        return self.__len__()
-
-    def getAttr(self, attr):
-        return [getattr(res, attr) for res in self.buffer] 
-
-    def getValues(self):
-        return [res.quantity*res.utility for res in self.buffer]
-
-    def getUtilities(self):
-        return [res.utility for res in self.buffer]
-
-    def getQuantities(self):
-        return [res.age for res in self.buffer]
-
-    def getQualities(self):
-        return [res.quality for res in self.buffer]
-
-    def getTimeStamps(self):
-        return [res.timeStamp for res in self.buffer]    
-
-    def getAges(self):
-        return [time.time()-res.timeStamp for res in self.buffer]    
-
     def getLocations(self):
         return [(res.x, res.y) for res in self.buffer]
 
@@ -172,14 +140,6 @@ class ResourceBuffer(object):
     def getResourceByLocation(self, location):
         return self.buffer[self.getLocations().index(location)]
 
-    def getResourceByTimestamp(self, timeStamp):
-        return self.buffer[self.getTimeStamps().index(timeStamp)]
-
-    def getResourceByQuality(self, quality):
-        return self.buffer[self.getQualities().index(quality)]
-
-    def getResourceByValue(self, value):
-        return self.buffer[self.getValues().index(value)]
 
 class Trip(object):
 
@@ -209,7 +169,7 @@ class Trip(object):
 
         C  = self.timedelta-self.FC
         
-        if len(self.C) >= 1 and C-self.C[-1] > self.price:
+        if len(self.C) > 0 and C-self.C[-1] > 1.25*self.price:
             robot.log.info("Finished before collection %s" % (C-self.C[-1]))
             finished = True
 
@@ -364,6 +324,12 @@ global pos
 pos = [0,0]
 global last
 last = 0
+global last_leave_decision_epoch
+last_leave_decision_epoch = 0
+global last_join_decision_epoch
+last_join_decision_epoch = 0
+
+
 def controlstep():
     global last, pos, clocks, counters, startFlag, startTime
 
@@ -391,12 +357,16 @@ def controlstep():
             clock.reset()
 
         # Startup transactions
+
+        txdata = {'function': 'register', 'inputs': []}
+        tx = Transaction(sender = me.id, data = txdata)
+        w3.send_transaction(tx)
+
         res = robot.variables.get_attribute("newResource")
-        print(res)
+
         if res:
-            res = Resource(res)
-            print(res._calldata)
-            txdata = {'function': 'updatePatch', 'inputs': res._calldata}
+            print(res)
+            txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
             tx = Transaction(sender = me.id, receiver = 2, value = 0, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
             w3.send_transaction(tx)
 
@@ -507,6 +477,31 @@ def controlstep():
 
                     return res
 
+        def decision(patch):
+            
+            last_epoch = patch['allepochs'][-1]
+            print(last_epoch)
+            # Average profit is the cost of one resource times the average of the ATCs
+            AP = patch['util']*last_epoch['price'] - sum(last_epoch['ATC'])/len(last_epoch['ATC'])
+        
+            # Linear decision probability
+            P = cp['firm']['entry_K']/10 * 1/(patch['util']*last_epoch['price']) * AP
+            
+            # Saturate for low profits
+            if abs(AP) < 0.075 * patch['util']*last_epoch['price']:
+                P = 0
+
+            robot.log.info(f"AP @ {patch['qlty']}: {round(AP)}")
+            robot.log.info(f"Entry/exit: {round(100*P, 1)}%")
+
+            if random.random() < abs(P):
+                if P < 0:
+                    return 'exit'
+                else:
+                    return 'entry'
+            else:
+                return None
+
         ##############################
         ##### STATE-MACHINE STEP #####
         ##############################
@@ -550,7 +545,7 @@ def controlstep():
         #### State::IDLE
         #########################################################################################################
         if fsm.query(States.IDLE):
-            # rw.step()
+
             fsm.setState(States.PLAN, message = "Planning")
 
         #########################################################################################################
@@ -558,72 +553,38 @@ def controlstep():
         ######################################################################################################### 
 
         elif fsm.query(States.PLAN):
-            global previous_epoch_num, tcp_sc
+            global last_leave_decision_epoch, last_join_decision_epoch
 
-            availiable = assigned =  arrived = join = leave = False
-            res = None
+            my_patch = w3.sc.getMyPatch(me.id)
+            
+            if my_patch:
 
-            block     = w3.get_block('latest')
-            # token     = tcp_sc.request(data = 'token')
-            resource  = w3.sc.getMyPatch(me.id)
-            resources = w3.sc.getPatches()
-            epochs    = w3.sc.getEpochs()
-            # robot.sc  = tcp_sc.request(data = 'getRobot')
-            # robot.epochs = epochs
+                if last_leave_decision_epoch < my_patch['epoch']['start']:
+                    print('New epoch on my patch')
+                    last_leave_decision_epoch = my_patch['epoch']['start']
 
-            availiable = w3.sc.getAvailiable() and len(epochs) == 0
-            assigned   = bool(resource)
+                    if decision(my_patch) == 'exit':
+                        res = Resource(my_patch['json'])
+                        fsm.setState(States.TRANSACT, message = "Leaving: %s" % res._desc, pass_along = {'function': 'leavePatch', 'inputs': []})
 
-            # LONG-RUN DECISION MAKING
-            for res in resources:
-                res = Resource(res['json'])
-
-                # Variables that can be useful for decisions
-                if len(epochs) > 0:
-                    
-
-                    # Decision is performed once per epoch
-                    if epochs[0]['number'] > previous_epoch_num:
-                        
-                        # Average profit is the cost of one resource times the average of the ATCs
-                        AP = res.utility*epochs[0]['price']-sum(epochs[0]['ATC'])/len(epochs[0]['ATC'])
-                    
-                        # Linear
-                        P = cp['entry_K'] * 1/(res.utility*epochs[0]['price']) * AP
-                        
-                        # Sigmoid
-                        # P =
-
-                        robot.log.info("Average Profit: %s" % round(AP))
-                        robot.log.info("Join/leave P: %s" % round(100*P,1))
-                        if random.random() < abs(P):
-                            if P > 0:
-                                join = True
-                            else:
-                                leave = True
-
-                        previous_epoch_num = epochs[0]['number']
-
-                        if join:
-                            break
-
-
-            if assigned:
-                rb.addResource(resource['json'], update_best = True)
-
-                if leave:
-                    fsm.setState(States.LEAVE, message = "Leaving: %s" % res._desc, pass_along = res)
                 else:
+                    rb.addResource(my_patch['json'], update_best = True)
                     fsm.setState(States.HOMING, message = None)
-                        
-            elif availiable:
-                fsm.setState(States.ASSIGN, message = "Assigning")
-
-            elif join:
-                fsm.setState(States.JOIN, message = "Joining: %s" % res._desc, pass_along = res)
 
             else:
-                fsm.setState(States.HOMING, message = None, pass_along = 'homing')
+                
+                last_epoch, last_patch = w3.sc.getEpoch()
+                if last_epoch and last_join_decision_epoch < last_epoch['start']:
+                    print(f"New epoch on {last_patch['qlty']}")
+                    last_join_decision_epoch = last_epoch['start']
+
+                    if decision(last_patch) == 'entry':
+                        res = Resource(last_patch['json'])
+                        fsm.setState(States.TRANSACT, message = "Joining: %s" % res._desc, pass_along = {'function': 'joinPatch', 'inputs': res._calldata[:2]})
+                    else:
+                        homing()
+                else:
+                    homing()
 
         #########################################################################################################
         #### State::HOMING  
@@ -631,168 +592,68 @@ def controlstep():
 
         elif fsm.query(States.HOMING):
 
-            if fsm.pass_along == 'homing':
-                homing()
-            else:
-                arrived = grouping(rb.best)
-                if arrived:
-                    my_patch = w3.sc.getMyPatch(me.id)
-                    if my_patch:
-                        rb.addResource(my_patch['json'], update_best = True)
+            arrived = grouping(rb.best)
+
+            if arrived:
+                
+                my_patch = w3.sc.getMyPatch(me.id)
+                block    = w3.get_block('latest')
+
+                if my_patch:
+                    rb.addResource(my_patch['json'], update_best = True)
+
+                    if block.height >= my_patch['epoch']['start']+2 and str(me.id) not in my_patch['epoch']['robots']: 
                         Trip(my_patch)
                         fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
-                    else:
-                        fsm.setState(States.PLAN, message = None)
+                else:
+                    fsm.setState(States.PLAN, message = None)
 
             if clocks['block'].query():
                 fsm.setState(States.PLAN, message = None)
-
-        #########################################################################################################
-        #### State::ASSIGN  
-        #########################################################################################################
-
-        elif fsm.query(States.ASSIGN):
-
-            homing()
-
-            if not txs['buy']:
-                txdata = {'function': 'assignPatch', 'inputs': []}
-                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['buy'])
-
-            if w3.get_transaction_receipt(txs['buy'].id):
-                txs['buy'] = None
-                fsm.setState(States.PLAN, message = "Assign success")
-
-            # if txs['buy'].query(3):
-            #     txs['buy'].reset(None)
-            #     fsm.setState(States.PLAN, message = "Assign success")
-
-            # elif txs['buy'].failed():    
-            #     fsm.setState(States.PLAN, message = "Assign failed")
-
-            # elif txs['buy'].hash == None:
-            #     res = fsm.pass_along
-            #     txHash = w3.sc.functions.assignPatch().transact()
-            #     txs['buy'].reset(txHash)
-            #     robot.log.info("Assigning patch")     
-
-
-        #########################################################################################################
-        #### State::JOIN  
-        #########################################################################################################
-
-        elif fsm.query(States.JOIN):
-
-            res = fsm.pass_along
-
-            if not txs['buy']:
-                txdata = {'function': 'joinPatch', 'inputs': res._calldata[:2]}
-                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['buy'])
-
-            if w3.get_transaction_receipt(txs['buy'].id):
-                txs['buy'] = None
-                fsm.setState(States.PLAN, message = "Join success")
-
-        #     if txs['buy'].query(3):
-        #         txs['buy'].reset(None)
-        #         fsm.setState(States.PLAN, message = "Join success")
-
-        #     elif txs['buy'].failed():   
-        #         fsm.setState(States.PLAN, message = "Join failed")
-        #         robot.log.warning(txs['buy'].msg)
-
-        #     elif txs['buy'].hash == None:
-        #         res = fsm.pass_along
-        #         txHash = w3.sc.functions.joinPatch(*res._calldata[:2]).transact()
-        #         txs['buy'].reset(txHash)
-        #         robot.log.info("Joining patch") 
-
-        #     elif txs['buy'].msg:
-        #         robot.log.info(txs['buy'].msg)
-
-        #########################################################################################################
-        #### State::LEAVE  
-        #########################################################################################################
-
-        elif fsm.query(States.LEAVE):
-
-            homing()
-
-            res = fsm.pass_along
-
-            if not txs['buy']:
-                txdata = {'function': 'leavePatch', 'inputs': []}
-                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['buy'])
-
-            if w3.get_transaction_receipt(txs['buy'].id):
-                txs['buy'] = None
-                fsm.setState(States.PLAN, message = "Leave success")
-
-        #     homing()
-
-        #     if txs['buy'].query(3):
-        #         txs['buy'].reset(None)
-        #         fsm.setState(States.PLAN, message = "Leave success")
-
-        #     elif txs['buy'].failed():  
-        #         fsm.setState(States.PLAN, message = "Leave failed")
-        #         robot.log.warning(txs['buy'].msg)
-
-        #     elif txs['buy'].hash == None:
-        #         res = fsm.pass_along
-        #         txHash = w3.sc.functions.leavePatch(*res._calldata[:2]).transact()
-        #         txs['buy'].reset(txHash)
-        #         robot.log.info("Leaving patch") 
-
-        #     elif txs['buy'].msg:
-        #         robot.log.info(txs['buy'].msg)
 
         #########################################################################################################
         #### State::FORAGE
         #########################################################################################################
         elif fsm.query(States.FORAGE):
 
-            # Update foraging resource
-            if clocks['block'].query():
-                myPatch = w3.sc.getMyPatch(me.id)
+            myPatch = w3.sc.getMyPatch(me.id)
 
-                if myPatch == None or myPatch == "" or myPatch == []:
-                    print("False Forage: %s %s" % (myPatch, type(myPatch)))
-
-            # Distance to resource
-            distance = nav.get_distance_to(rb.best._pr)
-
-            # Resource virtual sensor
-            resource = sensing()
-            found = resource and resource._p == rb.best._p
-            finished = False
-
-            if found:
-                rb.best = resource
-
-            if found and distance < 0.9*rb.best.radius:
-                robot.variables.set_attribute("foraging", "True")
-                nav.avoid(move = True)
-
-                finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
-
-                if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
-                    finished = True
+            if myPatch == None or myPatch == "" or myPatch == []:
+                fsm.setState(States.PLAN, message = "Falsely foraging")
 
             else:
-                nav.navigate_with_obstacle_avoidance(rb.best._pr)
 
-            ### SHORT-RUN DECISION MAKING
-            if finished:
-                robot.variables.set_attribute("foraging", "")
+                # Distance to resource
+                distance = nav.get_distance_to(rb.best._pr)
 
-                # # Log the result of the trip
-                # logs['firm'].log([*str(tripList[-1]).split()])
+                # Resource virtual sensor
+                resource = sensing()
+                found = resource and resource._p == rb.best._p
+                finished = False
 
-                fsm.setState(States.DROP, message = "Collected %s // Profit: %s" % (tripList[-1].Q, round(tripList[-1].profit,2)))
+                if found:
+                    rb.best = resource
+
+                if found and distance < 0.9*rb.best.radius:
+                    robot.variables.set_attribute("foraging", "True")
+                    nav.avoid(move = True)
+
+                    finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
+
+                    # if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
+                    #     finished = True
+
+                else:
+                    nav.navigate_with_obstacle_avoidance(rb.best._pr)
+
+                ### SHORT-RUN DECISION MAKING
+                if finished:
+                    robot.variables.set_attribute("foraging", "")
+
+                    # # Log the result of the trip
+                    # logs['firm'].log([*str(tripList[-1]).split()])
+
+                    fsm.setState(States.DROP, message = "Collected %s // Profit: %s" % (tripList[-1].Q, round(tripList[-1].profit,2)))
 
         #########################################################################################################
         #### State::DROP
@@ -806,35 +667,39 @@ def controlstep():
 
                 # Transact to drop resource
                 if not txs['drop']:
-                    robot.log.info('Dropping. TC:%s ATC:%s' % (tripList[-1].TC, tripList[-1].ATC))
+                    robot.log.info(f"Dropping. FC:{tripList[-1].FC} TC:{tripList[-1].TC} ATC:{tripList[-1].ATC}")
                     txdata = {'function': 'dropResource', 'inputs': rb.best._calldata+(tripList[-1].Q, tripList[-1].TC)}
                     txs['drop'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
                     w3.send_transaction(txs['drop'])
    
                 # Transition state  
                 else:
-                    # if txs['drop'].query(3):
                     if w3.get_transaction_receipt(txs['drop'].id):
                         robot.variables.set_attribute("dropResource", "True")
 
                         if not robot.variables.get_attribute("hasResource"):
-                            # txs['drop'].reset(None)
                             txs['drop'] = None
                             robot.variables.set_attribute("dropResource", "")   
-                            fsm.setState(States.PLAN, message = "Dropped: %s" % rb.best._desc)
+                            fsm.setState(States.PLAN, message = "Dropped: %s" % rb.best._desc)                       
 
-                    # elif txs['drop'].fail == True: 
-                    #     robot.log.info('Drop fail: %s', rb.best._desc)     
-                    #     txs['drop'].reset(None)
-                    #     robot.log.warning(txs['drop'].msg)
+        #########################################################################################################
+        #### State::TRANSACT  
+        #########################################################################################################
 
-                    # elif txs['drop'].hash == None:
-                    #     robot.log.info('Drop lost: %s', rb.best._desc)
-                    #     txs['drop'].reset(None)
+        elif fsm.query(States.TRANSACT):
 
-                    # elif txs['drop'].msg:
-                    #     robot.log.info(txs['drop'].msg)
-                        
+            homing()
+
+            if not txs['buy']:
+
+                txdata = fsm.pass_along
+                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
+                w3.send_transaction(txs['buy'])
+
+            if w3.get_transaction_receipt(txs['buy'].id):
+
+                txs['buy'] = None
+                fsm.setState(States.PLAN, message = "Transaction success")
 
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
@@ -859,15 +724,14 @@ def destroy():
         header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
         logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-
         name   = 'firm.csv'
         header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
         name   = 'epoch.csv'
-        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price']
+        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
         logs['epoch'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-
+        
         name   = 'block.csv'
         header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
         logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)

@@ -131,7 +131,7 @@
     <!-- * To activate the Lua editor, just use the 'lua_editor' flag attribute * -->
     <!-- ************************************************************************ -->
   <!-- <qt-opengl autoplay="true"> -->
-    <qt-opengl>
+    <qt-opengl autoplay="true">
       <user_functions library="${ARGOSFOLDER}/build/libpy_qtuser_function_interface.so"
                       label="py_qtuser_function" >
       <params script="${EXPERIMENTFOLDER}/loop_functions/qtuser_function.py"/>
