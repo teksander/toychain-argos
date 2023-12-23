@@ -16,7 +16,7 @@
   <controllers>
 
    
-    <python_controller id="collab" library="/home/volker/software//toychain-argos/argos-python/build/libpy_controller_interface.so">
+    <python_controller id="collab" library="/home/volker/Downloads//toychain-argos/argos-python/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
@@ -33,11 +33,11 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/volker/software//toychain-argos/MarketForaging/controllers/main_collab.py"
+      <params script="/home/volker/Downloads//toychain-argos/HelloNeighbor/controllers/main.py"
       timeRate="1" />
     </python_controller>
 
-    <python_controller id="greedy" library="/home/volker/software//toychain-argos/argos-python/build/libpy_controller_interface.so">
+    <python_controller id="greedy" library="/home/volker/Downloads//toychain-argos/argos-python/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
@@ -53,16 +53,16 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/volker/software//toychain-argos/MarketForaging/controllers/main_greedy.py"
+      <params script="/home/volker/Downloads//toychain-argos/HelloNeighbor/controllers/main_greedy.py"
       timeRate="1" />
     </python_controller>
 
 
 
   </controllers>
-    <loop_functions library="/home/volker/software//toychain-argos/argos-python/build/libpy_loop_function_interface.so"
+    <loop_functions library="/home/volker/Downloads//toychain-argos/argos-python/build/libpy_loop_function_interface.so"
                   label="py_loop_function">
-    <params script="/home/volker/software//toychain-argos/MarketForaging/loop_functions/loop_function.py"/>
+    <params script="/home/volker/Downloads//toychain-argos/HelloNeighbor/loop_functions/loop_function.py"/>
   </loop_functions>
 
 
@@ -71,7 +71,7 @@
   <!-- *********************** -->
   <arena size="4.472, 4.472, 1.5" center="0,0,0">
 
- <floor id="f" source="image" path="/home/volker/software//toychain-argos/MarketForaging/experiments/floors/market.png" />
+ <floor id="f" source="image" path="/home/volker/Downloads//toychain-argos/HelloNeighbor/experiments/floors/market.png" />
 
     <box id="wall_north" size="4.472,0.06,0.1" movable="false">
       <body position="0,2.236,0" orientation="0,0,0" />
@@ -132,9 +132,9 @@
     <!-- ************************************************************************ -->
   <!-- <qt-opengl autoplay="true"> -->
     <qt-opengl autoplay="true">
-      <user_functions library="/home/volker/software//toychain-argos/argos-python/build/libpy_qtuser_function_interface.so"
+      <user_functions library="/home/volker/Downloads//toychain-argos/argos-python/build/libpy_qtuser_function_interface.so"
                       label="py_qtuser_function" >
-      <params script="/home/volker/software//toychain-argos/MarketForaging/loop_functions/qtuser_function.py"/>
+      <params script="/home/volker/Downloads//toychain-argos/HelloNeighbor/loop_functions/qtuser_function.py"/>
       </user_functions>
       
     <camera>
