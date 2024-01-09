@@ -57,10 +57,6 @@ clocks['peering'] = Timer(5)
 clocks['sensing'] = Timer(2)
 clocks['block']   = Timer(150)
 
-# Store the position of the market and cache
-market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp['market']['r']})
-cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
-
 global geth_peer_count
 
 GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
@@ -75,17 +71,11 @@ def init():
     robotID = str(int(robot.variables.get_id()[2:])+1)
     robotIP = '127.0.0.1'
     robot.variables.set_attribute("id", str(robotID))
-    robot.variables.set_attribute("circle_color", "gray50")
     robot.variables.set_attribute("scresources", "[]")
     robot.variables.set_attribute("foraging", "")
-    robot.variables.set_attribute("dropResource", "")
-    robot.variables.set_attribute("hasResource", "")
-    robot.variables.set_attribute("resourceCount", "0")
     robot.variables.set_attribute("state", "")
-    robot.variables.set_attribute("forageTimer", "0")
     robot.variables.set_attribute("quantity", "0")
     robot.variables.set_attribute("block", "")
-    robot.variables.set_attribute("groupSize", "1")
     robot.variables.set_attribute("block", "0")
     robot.variables.set_attribute("hash", str(hash("genesis")))
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
@@ -153,11 +143,6 @@ global pos
 pos = [0,0]
 global last
 last = 0
-global last_leave_decision_epoch
-last_leave_decision_epoch = 0
-global last_join_decision_epoch
-last_join_decision_epoch = 0
-
 
 def controlstep():
     global last, pos, clocks, counters, startFlag, startTime
@@ -188,7 +173,7 @@ def controlstep():
         # Startup transactions
 
         # Register robot (i.e., tell the smart contract that the robot is part of the experiment)
-        txdata = {'function': 'register', 'inputs': []}
+        txdata = {'function': 'register1', 'inputs': []}
         tx = Transaction(sender = me.id, data = txdata)
         w3.send_transaction(tx)
         w3.start_tcp()
@@ -242,8 +227,6 @@ def controlstep():
         robot.variables.set_attribute("state_hash", str(w3.get_block('last').state.state_hash))
 
 
-        myPatch = w3.sc.getMyPatch(me.id)
-
 def reset():
     pass
 
@@ -261,28 +244,11 @@ def destroy():
         header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
         logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-        name   = 'firm.csv'
-        header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
-        logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-
-        name   = 'epoch.csv'
-        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
-        logs['epoch'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
         
         name   = 'block.csv'
         header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
         logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-        # Log the result of the each trip performed by robot
-        for trip in tripList:
-            if trip.finished:
-                logs['firm'].log([*str(trip).split()])
-
-        # Log each epoch over the operation of the swarm
-        epochs = w3.sc.getAllEpochs()
-        for resource_id, resource_epochs in epochs.items():
-            for epoch in resource_epochs:
-                logs['epoch'].log([resource_id]+[str(x).replace(" ","") for x in epoch.values()])
 
         # Log each block over the operation of the swarm
         blockchain = w3.chain
