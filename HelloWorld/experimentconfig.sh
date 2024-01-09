@@ -1,9 +1,9 @@
 # [PATHS]
-export HOMEFOLDER="$HOME/Downloads/"
+export HOMEFOLDER="$HOME/software/"
 export MAINFOLDER="$HOMEFOLDER/toychain-argos"
 export DOCKERFOLDER="$MAINFOLDER/argos-blockchain-sm"
 export ARGOSFOLDER="$MAINFOLDER/argos-python"
-export EXPERIMENTFOLDER="$MAINFOLDER/HelloNeighbor"
+export EXPERIMENTFOLDER="$MAINFOLDER/HelloWorld"
 export BLOCKCHAINPATH="$HOMEFOLDER/eth_data_para/data"
 # [[ ":$PATH:" != *":$MAINFOLDER/scripts:"* ]] && export PATH=$PATH:$MAINFOLDER/scripts
 
