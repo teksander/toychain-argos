@@ -144,8 +144,11 @@ pos = [0,0]
 global last
 last = 0
 
+counter = 0
+
 def controlstep():
-    global last, pos, clocks, counters, startFlag, startTime
+    global counter, last, pos, clocks, counters, startFlag, startTime
+
 
     if not startFlag:
         ##########################
@@ -188,6 +191,13 @@ def controlstep():
             for enode in erb_enodes-set(w3.peers):
                 try:
                     w3.add_peer(enode)
+
+                    # Say hello!
+                    txdata = {'function': 'sayHello', 'inputs': []}
+                    tx = Transaction(sender = me.id, data = txdata)
+                    w3.send_transaction(tx)
+
+
                 except Exception as e:
                     raise e
                 
@@ -219,6 +229,13 @@ def controlstep():
         robot.variables.set_attribute("block", str(w3.get_block('last').height))
         robot.variables.set_attribute("block_hash", str(w3.get_block('last').hash))
         robot.variables.set_attribute("state_hash", str(w3.get_block('last').state.state_hash))
+
+        #print("Clock is", clock.time)
+
+        if (counter % 100) == 0:
+            print("Robot", me.id, "helloCounter is ", w3.sc.getHelloCounter())
+
+        counter += 1
 
 
 def reset():
