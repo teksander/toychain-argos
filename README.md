@@ -28,7 +28,7 @@ Step 2: Download and compile E-puck plugin
 
 Step 1: Clone the repo
 
-```git clone --recurse-submodules https://github.com/teksander/toychain-argos.git```
+```git clone --recurse-submodules git@github.com:teksander/toychain-argos.git```
 
 Step 2: Compile ARGoS-Python
 
