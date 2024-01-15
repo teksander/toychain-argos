@@ -14,7 +14,7 @@ sys.path += [os.environ['MAINFOLDER'], \
             ]
 
 from controllers.movement import RandomWalk, Navigate, Odometry, OdoCompass, GPS
-from controllers.groundsensor import ResourceVirtualSensor, Resource
+from controllers.groundsensor import GroundSensor, ResourceVirtualSensor, Resource
 from controllers.erandb import ERANDB
 from controllers.rgbleds import RGBLEDs
 from controllers.aux import *
@@ -79,6 +79,7 @@ def init():
     robot.variables.set_attribute("block", "0")
     robot.variables.set_attribute("hash", str(hash("genesis")))
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
+    robot.variables.set_attribute("is_byzantine", "False")    
 
     # /* Initialize Console Logging*/
     #######################################################################
@@ -109,7 +110,7 @@ def init():
 
     #/* Init Resource-Sensors */
     robot.log.info('Initialising resource sensor...')
-    rs = ResourceVirtualSensor(robot)
+    rs = GroundSensor(robot)
     
     # /* Init Random-Walk, __walking process */
     robot.log.info('Initialising random-walk...')
@@ -144,8 +145,12 @@ pos = [0,0]
 global last
 last = 0
 
+counter = 0
+
+global 
+
 def controlstep():
-    global last, pos, clocks, counters, startFlag, startTime
+    global counter, last, pos, clocks, counters, startFlag, startTime
 
     if not startFlag:
         ##########################
@@ -214,13 +219,19 @@ def controlstep():
 
         w3.step()
 
-        
-        print("Robot", me.id, "Timestamp latest block", str(w3.get_block('last').timestamp))
-
         # Update blockchain state on the robot C++ object
         robot.variables.set_attribute("block", str(w3.get_block('last').height))
         robot.variables.set_attribute("block_hash", str(w3.get_block('last').hash))
         robot.variables.set_attribute("state_hash", str(w3.get_block('last').state.state_hash))
+
+
+        if random.random() < cp['breaking_probability']:
+            robot.variables.set_attribute("is_byzantine", "True")
+            rw.destroy_motor('left')
+
+        counter += 1       
+
+        print(rs.getNew()[1]) 
 
 
 def reset():
