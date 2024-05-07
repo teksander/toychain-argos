@@ -29,6 +29,7 @@ from toychain.src.Block import Block, State
 from toychain.src.utils import gen_enode
 
 from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
+from toychain.src.consensus.ProofOfWork import ProofOfWork
 from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
@@ -242,7 +243,8 @@ def init():
     #######################################################################
     # # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
-    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(GENESIS))
+    # w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority())
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfWork())
 
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)

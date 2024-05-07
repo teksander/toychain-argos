@@ -1,5 +1,5 @@
 # [PATHS]
-export HOMEFOLDER="$HOME/software/"
+export HOMEFOLDER="$HOME"
 export MAINFOLDER="$HOMEFOLDER/toychain-argos"
 export DOCKERFOLDER="$MAINFOLDER/argos-blockchain-sm"
 export ARGOSFOLDER="$MAINFOLDER/argos-python"
