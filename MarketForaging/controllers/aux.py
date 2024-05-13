@@ -9,7 +9,7 @@ sys.path += [os.environ['MAINFOLDER'], \
             ]
 
 
-from toychain.src.utils import CustomTimer
+from toychain.src.utils.helpers import CustomTimer
 
 logger = logging.getLogger(__name__)
 

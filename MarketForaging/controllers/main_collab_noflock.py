@@ -24,12 +24,11 @@ from controllers.statemachine import *
 from controllers.control_params import params as cp
 from loop_functions.loop_params import params as lp
 
-from toychain.src.utils.helpers import gen_enode
-from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
-from toychain.src.consensus.ProofOfWork import ProofOfWork
 from toychain.src.Node import Node
-from toychain.src.Block import Block
-from toychain.src.State import State
+from toychain.src.Block import Block, State
+from toychain.src.utils import gen_enode
+
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
 from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
@@ -54,7 +53,7 @@ logtofile = False
 # /* Experiment Global Variables */
 #######################################################################
 
-clocks['peering'] = Timer(10)
+clocks['peering'] = Timer(5)
 clocks['sensing'] = Timer(2)
 clocks['block']   = Timer(150)
 
@@ -170,7 +169,7 @@ class Trip(object):
 
         C  = self.timedelta-self.FC
         
-        if len(self.C) > 0 and C-self.C[-1] > 1.25*self.price:
+        if len(self.C) > 0 and C-self.C[-1] > self.price:
             robot.log.info("Finished before collection %s" % (C-self.C[-1]))
             finished = True
 
@@ -243,8 +242,7 @@ def init():
     #######################################################################
     # # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
-    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority())
-    # w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfWork())
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(GENESIS))
 
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
@@ -359,11 +357,13 @@ def controlstep():
             clock.reset()
 
         # Startup transactions
+
         txdata = {'function': 'register', 'inputs': []}
         tx = Transaction(sender = me.id, data = txdata)
         w3.send_transaction(tx)
 
         res = robot.variables.get_attribute("newResource")
+
         if res:
             print(res)
             txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
@@ -372,7 +372,10 @@ def controlstep():
 
             # w3.sc.functions.updatePatch(*resource._calldata).transact()
 
-
+        # my_eff = int(float(robot.variables.get_attribute("eff"))*100)
+        txdata = {'function': 'register', 'inputs': []}
+        tx = Transaction(sender = me.id, data = txdata)
+        w3.send_transaction(tx)
 
         w3.start_tcp()
         w3.start_mining()
@@ -484,10 +487,6 @@ def controlstep():
             # Linear decision probability
             P = cp['firm']['entry_K']/10 * 1/(patch['util']*last_epoch['price']) * AP
             
-            # Saturate for low profits
-            if abs(AP) < 0.075 * patch['util']*last_epoch['price']:
-                P = 0
-
             robot.log.info(f"AP @ {patch['qlty']}: {round(AP)}")
             robot.log.info(f"Entry/exit: {round(100*P, 1)}%")
 
@@ -553,20 +552,17 @@ def controlstep():
             global last_leave_decision_epoch, last_join_decision_epoch
 
             my_patch = w3.sc.getMyPatch(me.id)
-            
             if my_patch:
+                rb.addResource(my_patch['json'], update_best = True)
+                fsm.setState(States.HOMING, message = None)
 
-                if last_leave_decision_epoch < my_patch['epoch']['start']:
+                if last_leave_decision_epoch < my_patch['epoch']['number']:
                     print('New epoch on my patch')
-                    last_leave_decision_epoch = my_patch['epoch']['start']
+                    last_leave_decision_epoch = my_patch['epoch']['number']
 
                     if decision(my_patch) == 'exit':
                         res = Resource(my_patch['json'])
-                        fsm.setState(States.TRANSACT, message = "Leaving: %s" % res._desc, pass_along = {'function': 'leavePatch', 'inputs': []})
-
-                else:
-                    rb.addResource(my_patch['json'], update_best = True)
-                    fsm.setState(States.HOMING, message = None)
+                        fsm.setState(States.ASSIGN, message = "Leaving: %s" % res._desc, pass_along = {'function': 'leavePatch', 'inputs': []})
 
             else:
                 
@@ -577,7 +573,7 @@ def controlstep():
 
                     if decision(last_patch) == 'entry':
                         res = Resource(last_patch['json'])
-                        fsm.setState(States.TRANSACT, message = "Joining: %s" % res._desc, pass_along = {'function': 'joinPatch', 'inputs': res._calldata[:2]})
+                        fsm.setState(States.ASSIGN, message = "Joining: %s" % res._desc, pass_along = {'function': 'joinPatch', 'inputs': res._calldata[:2]})
                     else:
                         homing()
                 else:
@@ -592,21 +588,35 @@ def controlstep():
             arrived = grouping(rb.best)
 
             if arrived:
-                
                 my_patch = w3.sc.getMyPatch(me.id)
-                block    = w3.get_block('latest')
-
                 if my_patch:
                     rb.addResource(my_patch['json'], update_best = True)
-
-                    if block.height >= my_patch['epoch']['start']+2 and str(me.id) not in my_patch['epoch']['robots']: 
-                        Trip(my_patch)
-                        fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
+                    Trip(my_patch)
+                    fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
                 else:
                     fsm.setState(States.PLAN, message = None)
 
             if clocks['block'].query():
                 fsm.setState(States.PLAN, message = None)
+
+        #########################################################################################################
+        #### State::ASSIGN  
+        #########################################################################################################
+
+        elif fsm.query(States.ASSIGN):
+
+            homing()
+
+            if not txs['buy']:
+
+                txdata = fsm.pass_along
+                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
+                w3.send_transaction(txs['buy'])
+
+            if w3.get_transaction_receipt(txs['buy'].id):
+
+                txs['buy'] = None
+                fsm.setState(States.PLAN, message = "Transaction success")
 
         #########################################################################################################
         #### State::FORAGE
@@ -637,8 +647,8 @@ def controlstep():
 
                     finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
 
-                    # if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
-                    #     finished = True
+                    if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
+                        finished = True
 
                 else:
                     nav.navigate_with_obstacle_avoidance(rb.best._pr)
@@ -664,39 +674,22 @@ def controlstep():
 
                 # Transact to drop resource
                 if not txs['drop']:
-                    robot.log.info(f"Dropping. FC:{tripList[-1].FC} TC:{tripList[-1].TC} ATC:{tripList[-1].ATC}")
+                    robot.log.info('Dropping. TC:%s ATC:%s' % (tripList[-1].TC, tripList[-1].ATC))
                     txdata = {'function': 'dropResource', 'inputs': rb.best._calldata+(tripList[-1].Q, tripList[-1].TC)}
                     txs['drop'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
                     w3.send_transaction(txs['drop'])
    
                 # Transition state  
                 else:
+                    # if txs['drop'].query(3):
                     if w3.get_transaction_receipt(txs['drop'].id):
                         robot.variables.set_attribute("dropResource", "True")
 
                         if not robot.variables.get_attribute("hasResource"):
+                            # txs['drop'].reset(None)
                             txs['drop'] = None
                             robot.variables.set_attribute("dropResource", "")   
                             fsm.setState(States.PLAN, message = "Dropped: %s" % rb.best._desc)                       
-
-        #########################################################################################################
-        #### State::TRANSACT  
-        #########################################################################################################
-
-        elif fsm.query(States.TRANSACT):
-
-            homing()
-
-            if not txs['buy']:
-
-                txdata = fsm.pass_along
-                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['buy'])
-
-            if w3.get_transaction_receipt(txs['buy'].id):
-
-                txs['buy'] = None
-                fsm.setState(States.PLAN, message = "Transaction success")
 
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
@@ -726,9 +719,9 @@ def destroy():
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
         name   = 'epoch.csv'
-        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
+        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price']
         logs['epoch'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-        
+
         name   = 'block.csv'
         header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
         logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
