@@ -29,7 +29,6 @@ from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
 from toychain.src.consensus.ProofOfWork import ProofOfWork
 from toychain.src.Node import Node
 from toychain.src.Block import Block
-from toychain.src.State import State
 from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
@@ -64,7 +63,7 @@ cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['c
 
 global geth_peer_count
 
-GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
+# GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
 
 class ResourceBuffer(object):
     """ Establish the resource buffer class 
