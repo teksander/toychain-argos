@@ -1,46 +1,40 @@
 # [PATHS]
 export HOMEFOLDER="$HOME"
 export MAINFOLDER="$HOMEFOLDER/toychain-argos"
-export DOCKERFOLDER="$MAINFOLDER/argos-blockchain-sm"
 export ARGOSFOLDER="$MAINFOLDER/argos-python"
-export EXPERIMENTFOLDER="$MAINFOLDER/HelloWorld"
-export BLOCKCHAINPATH="$HOMEFOLDER/eth_data_para/data"
+export TOYCHFOLDER="$MAINFOLDER/toychain"
+export EXPERIMENTFOLDER="$MAINFOLDER/MarketForaging"
 # [[ ":$PATH:" != *":$MAINFOLDER/scripts:"* ]] && export PATH=$PATH:$MAINFOLDER/scripts
 
 # [FILES]
 export ARGOSNAME="market-foraging"
-export GENESISNAME="genesis_poa"
-export CONTRACTNAME="MarketForaging"
-export SCNAME="hello_neighbor"
-
-export GENESISFILE="${DOCKERFOLDER}/geth/files/$GENESISNAME.json"
-export CONTRACTADDRESS="${EXPERIMENTFOLDER}/scs/contractAddress.txt"
-export CONTRACTABI="${EXPERIMENTFOLDER}/scs/build/$CONTRACTNAME.abi"
-export CONTRACTBIN="${EXPERIMENTFOLDER}/scs/build/$CONTRACTNAME.bin-runtime"
-export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.sol" 
-export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.sol" 
 export ARGOSFILE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.argos"
 export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 
-# [DOCKER]
-export SWARMNAME=ethereum
-export CONTAINERBASE=${SWARMNAME}_eth
+export CONTRACTADDRESS="${EXPERIMENTFOLDER}/scs/contractAddress.txt"
+export CONTRACTNAME="MarketForaging"
+export SCNAME="fixed"
+export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
+export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.py" 
+
+export GENESISFILE="${DOCKERFOLDER}/geth/files/$GENESISNAME.json"
 
 # [ARGOS]
-export NUMROBOTS=6
-export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
+export NUM1=20
+export CON1="${EXPERIMENTFOLDER}/controllers/main_collab.py"
 
+export NUM2=0
+export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
 
 export RABRANGE="0.8"
 export WHEELNOISE="0"
 export TPS=10
 export DENSITY="1"
 
-
-export ARENADIM="2"
-export ARENADIMH="1"
-export STARTDIM="1"
-
+export NUMROBOTS=$(echo $NUM1+$NUM2 | bc)
+export ARENADIM=$(echo "scale=3 ; sqrt($NUMROBOTS/$DENSITY)" | bc)
+export ARENADIMH=$(echo "scale=3 ; $ARENADIM/2" | bc)
+export STARTDIM=$(echo "scale=3 ; $ARENADIM/5" | bc)
 
 # [GETH]
 export BLOCKPERIOD=2
