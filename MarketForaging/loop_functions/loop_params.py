@@ -69,7 +69,7 @@ params['patches']['counts'] = {'red': 0, 'green': 0 , 'blue': 1, 'yellow': 0}
 params['patches']['radii']  = {k: params['patches']['radius'] for k in params['patches']['qualities']}
 
 # Parameters for resource economy
-params['patches']['utility']     = {'red': 1, 'green':  100, 'blue': 200, 'yellow': 250}
+params['patches']['utility']     = {'red': 1, 'green':  1, 'blue': 200, 'yellow': 1}
 params['patches']['forage_rate'] = {'red': 10, 'green':  8, 'blue': 1, 'yellow': 1.5}
 params['patches']['regen_rate']  = {'red': 1, 'green':  3, 'blue': 8, 'yellow': 6}
 

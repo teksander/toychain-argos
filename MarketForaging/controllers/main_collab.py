@@ -364,7 +364,7 @@ def controlstep():
         if res:
             print(res)
             txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
-            tx = Transaction(sender = me.id, receiver = 0, value = 0.1, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
+            tx = Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
             w3.send_transaction(tx)
 
             # w3.sc.functions.updatePatch(*resource._calldata).transact()

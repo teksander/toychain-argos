@@ -13,15 +13,15 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 
 export CONTRACTADDRESS="${EXPERIMENTFOLDER}/scs/contractAddress.txt"
 export CONTRACTNAME="MarketForaging"
-export SCNAME="noepochs"
+export SCNAME="contract"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 # export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.py" 
 
 export GENESISFILE="${DOCKERFOLDER}/geth/files/$GENESISNAME.json"
 
 # [ARGOS]
-export NUM1=9
-export CON1="${EXPERIMENTFOLDER}/controllers/main_collab_noepochs.py"
+export NUM1=20
+export CON1="${EXPERIMENTFOLDER}/controllers/main_collab.py"
 
 export NUM2=0
 export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
@@ -58,8 +58,8 @@ export SEED=1500
 export TIMELIMIT=100
 export LENGTH=5000
 export SLEEPTIME=5
-export REPS=1
-export NOTES="debug logs"
+export REPS=5
+export NOTES="Variation of utility of the resource between 100 and 400"
 
 
 
