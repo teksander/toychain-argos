@@ -3,7 +3,7 @@ export HOMEFOLDER="$HOME"
 export MAINFOLDER="$HOMEFOLDER/toychain-argos"
 export ARGOSFOLDER="$MAINFOLDER/argos-python"
 export TOYCHFOLDER="$MAINFOLDER/toychain"
-export EXPERIMENTFOLDER="$MAINFOLDER/MarketForaging"
+export EXPERIMENTFOLDER="$MAINFOLDER/MarketAllocation"
 # [[ ":$PATH:" != *":$MAINFOLDER/scripts:"* ]] && export PATH=$PATH:$MAINFOLDER/scripts
 
 # [FILES]
@@ -20,7 +20,7 @@ export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.py"
 export GENESISFILE="${DOCKERFOLDER}/geth/files/$GENESISNAME.json"
 
 # [ARGOS]
-export NUM1=20
+export NUM1=5
 export CON1="${EXPERIMENTFOLDER}/controllers/main_collab.py"
 
 export NUM2=0

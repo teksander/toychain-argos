@@ -5,8 +5,8 @@
 #######################################################################
 import random, math
 import time, sys, os
-
 import json
+
 experimentFolder = os.environ['EXPERIMENTFOLDER']
 sys.path += [os.environ['MAINFOLDER'], \
              os.environ['EXPERIMENTFOLDER']+'/controllers', \
@@ -25,10 +25,9 @@ from controllers.control_params import params as cp
 from loop_functions.loop_params import params as lp
 
 from toychain.src.utils.helpers import gen_enode
-from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
-from toychain.src.consensus.ProofOfWork import ProofOfWork
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority, BLOCK_PERIOD
 from toychain.src.Node import Node
-from toychain.src.Block import Block
+from toychain.src.Block import Block, State
 from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
@@ -53,16 +52,17 @@ logtofile = False
 # /* Experiment Global Variables */
 #######################################################################
 
-clocks['peering'] = Timer(10)
-clocks['sensing'] = Timer(2)
-clocks['block']   = Timer(150)
+clocks['peering']  = Timer(30)
+clocks['sensing']  = Timer(5)
+clocks['block']    = Timer(BLOCK_PERIOD)
+clocks['decision'] = Timer(BLOCK_PERIOD*cp['firm']['entry_f'])
 
 # Store the position of the market and cache
 market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp['market']['r']})
 cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
 
-
 global geth_peer_count
+GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
 
 class ResourceBuffer(object):
     """ Establish the resource buffer class 
@@ -204,8 +204,7 @@ class Trip(object):
 
 def init():
     global clocks,counters, logs, submodules, me, rw, nav, odo, gps, rb, w3, fsm, rs, erb, rgb
-    robotID = str(int(robot.variables.get_id()[2:])+1)
-    robotIP = '127.0.0.1'
+    robotID, robotIP = str(int(robot.variables.get_id()[2:])+1), '127.0.0.1'
     robot.variables.set_attribute("id", str(robotID))
     robot.variables.set_attribute("circle_color", "gray50")
     robot.variables.set_attribute("scresources", "[]")
@@ -230,7 +229,7 @@ def init():
     name =  'monitor.log'
     os.makedirs(os.path.dirname(log_folder+name), exist_ok=True) 
     logging.basicConfig(filename=log_folder+name, filemode='w+', format='[{} %(levelname)s %(name)s] %(message)s'.format(robotID))
-    logging.getLogger('sc').setLevel(20)
+    logging.getLogger('sc').setLevel(10)
     logging.getLogger('w3').setLevel(70)
     logging.getLogger('poa').setLevel(70)
     robot.log = logging.getLogger()
@@ -240,8 +239,7 @@ def init():
     #######################################################################
     # # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
-    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority())
-    # w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfWork())
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(genesis = GENESIS))
 
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
@@ -323,14 +321,140 @@ global pos
 pos = [0,0]
 global last
 last = 0
-global last_leave_decision_epoch
-last_leave_decision_epoch = 0
-global last_join_decision_epoch
-last_join_decision_epoch = 0
-
 
 def controlstep():
     global last, pos, clocks, counters, startFlag, startTime
+
+     ###########################
+    ######## ROUTINES #########
+    ###########################
+
+    def peering():
+
+        # Get the current peers from erb
+        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
+
+        # Add peers on the toychain
+        for enode in erb_enodes-set(w3.peers):
+            try:
+                w3.add_peer(enode)
+            except Exception as e:
+                raise e
+            
+        # Remove peers from the toychain
+        for enode in set(w3.peers)-erb_enodes:
+            try:
+                w3.remove_peer(enode)
+            except Exception as e:
+                raise e
+
+        # Turn on LEDs according to geth peer count
+        rgb.setLED(rgb.all, rgb.presets.get(len(w3.peers), 3*['red']))
+
+    def homing():
+
+        # Navigate to the market
+        arrived = True
+
+        if nav.get_distance_to(market._pr) < 0.9*market.radius:           
+            nav.avoid(move = True)
+            
+        elif nav.get_distance_to(market._pr) < market.radius and len(w3.peers) > 1:
+            nav.avoid(move = True)
+
+        else:
+            nav.navigate_with_obstacle_avoidance(market._pr)
+            arrived = False
+
+        return arrived
+
+    def dropping(resource):
+
+        direction = (resource._pv-market._pv).rotate(-25, degrees = True).normalize()
+        target = direction*(market.radius+cache.radius)/2+market._pv
+
+        # Navigate to drop location
+        arrived = True
+
+        if nav.get_distance_to(market._p) < market.radius + 0.5* (cache.radius-market.radius):
+            nav.avoid(move = True)
+        else:
+            nav.navigate_with_obstacle_avoidance(target)
+            arrived = False
+
+        return arrived
+
+    def grouping(resource):
+
+        direction = (resource._pv-market._pv).rotate(25, degrees = True).normalize()
+        target = direction*(market.radius+cache.radius)/2+market._pv
+
+        # Navigate to the group location
+        arrived = True
+        if nav.get_distance_to(target) < 0.2*market.radius:           
+            nav.avoid(move = True) 
+        else:
+            nav.navigate(target)
+            arrived = False
+
+        return arrived
+
+    def sensing(global_pos = True):
+
+        # Sense environment for resources
+        if clocks['sensing'].query(): 
+            res = rs.getNew()
+
+            if res:
+                if global_pos:
+                    # Use resource with GPS coordinates
+                    rb.addResource(res)
+
+                else:
+                    # Add odometry error to resource coordinates
+                    error = odo.getPosition() - gps.getPosition()
+                    res.x += error.x
+                    res.y += error.y
+
+                    # use resource with odo coordinates
+                    rb.addResource(Resource(res._json))
+
+                return res
+
+    def decision(patch, N):
+        
+        epoch = patch['epoch']
+
+        def AP(window = 1):
+
+            if not epoch['ATC']:
+                return 0
+            
+            window = min(window, len(epoch['ATC']))
+            return patch['util'] * epoch['price'] - sum(epoch['ATC'][-window:]) / window
+            
+        # Proportional decision probability
+        Pt = cp['firm']['entry_Kp']/10 * 1/(patch['util']*epoch['price']) * AP(1)
+
+        # Integrated decision probability
+        Pt += cp['firm']['entry_Ki']/10 * 1/(patch['util']*epoch['price']) * AP(cp['firm']['entry_w'])
+
+        if Pt > 1: 
+            P = 1
+        else:
+            P  = 1 - (1-Pt)**(1/N)
+        
+        robot.log.info(f"last AP @ {patch['qlty']}: {round(AP(1))}")
+        robot.log.info(f"last {cp['firm']['entry_w']} APs @ {patch['qlty']}: {round(AP(cp['firm']['entry_w']))}")
+        robot.log.info(f"Entry/exit: {round(100*P, 2)}% ({round(100*Pt, 1)}%)")
+
+        if random.random() < abs(P):
+            if P < 0:
+                return 'exit'
+            else:
+                return 'entry'
+        else:
+            return None
 
     if not startFlag:
         ##########################
@@ -355,144 +479,29 @@ def controlstep():
         for clock in clocks.values():
             clock.reset()
 
-        # Startup transactions
-        txdata = {'function': 'register', 'inputs': []}
-        tx = Transaction(sender = me.id, data = txdata)
-        w3.send_transaction(tx)
-
-        res = robot.variables.get_attribute("newResource")
-        if res:
-            print(res)
-            txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
-            tx = Transaction(sender = me.id, receiver = 0, value = 0.1, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
-            w3.send_transaction(tx)
-
-            # w3.sc.functions.updatePatch(*resource._calldata).transact()
-
         w3.start_tcp()
         w3.start_mining()
+
+        # Startup transactions
+        res = robot.variables.get_attribute("newResource")
+        if res:
+            txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
+            tx = Transaction(sender = me.id, receiver = 2, value = 0, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
+            w3.send_transaction(tx)
+
+            txdata = {'function': 'register', 'inputs': [0]}
+            tx = Transaction(sender = me.id, data = txdata)
+            w3.send_transaction(tx)
+
+            rb.addResource(Resource(res)._json, update_best = True)
+            fsm.setState(States.HOMING, message = None)
+            
+        else:
+            txdata = {'function': 'register', 'inputs': []}
+            tx = Transaction(sender = me.id, data = txdata)
+            w3.send_transaction(tx)
+
     else:
-
-        ###########################
-        ######## ROUTINES #########
-        ###########################
-
-        def peering():
-
-            # Get the current peers from erb
-            erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
-
-            # Add peers on the toychain
-            for enode in erb_enodes-set(w3.peers):
-                try:
-                    w3.add_peer(enode)
-                except Exception as e:
-                    raise e
-                
-            # Remove peers from the toychain
-            for enode in set(w3.peers)-erb_enodes:
-                try:
-                    w3.remove_peer(enode)
-                except Exception as e:
-                    raise e
-
-            # Turn on LEDs according to geth peer count
-            rgb.setLED(rgb.all, rgb.presets.get(len(w3.peers), 3*['red']))
-
-        def homing():
-
-            # Navigate to the market
-            arrived = True
-
-            if nav.get_distance_to(market._pr) < 0.9*market.radius:           
-                nav.avoid(move = True)
-                
-            elif nav.get_distance_to(market._pr) < market.radius and len(w3.peers) > 1:
-                nav.avoid(move = True)
-
-            else:
-                nav.navigate_with_obstacle_avoidance(market._pr)
-                arrived = False
-
-            return arrived
-
-        def dropping(resource):
-
-            direction = (resource._pv-market._pv).rotate(-25, degrees = True).normalize()
-            target = direction*(market.radius+cache.radius)/2+market._pv
-
-            # Navigate to drop location
-            arrived = True
-
-            if nav.get_distance_to(market._p) < market.radius + 0.5* (cache.radius-market.radius):
-                nav.avoid(move = True)
-            else:
-                nav.navigate_with_obstacle_avoidance(target)
-                arrived = False
-
-            return arrived
-
-        def grouping(resource):
-
-            direction = (resource._pv-market._pv).rotate(25, degrees = True).normalize()
-            target = direction*(market.radius+cache.radius)/2+market._pv
-
-            # Navigate to the group location
-            arrived = True
-            if nav.get_distance_to(target) < 0.2*market.radius:           
-                nav.avoid(move = True) 
-            else:
-                nav.navigate(target)
-                arrived = False
-
-            return arrived
-
-        def sensing(global_pos = True):
-
-            # Sense environment for resources
-            if clocks['sensing'].query(): 
-                res = rs.getNew()
-
-                if res:
-                    if global_pos:
-                        # Use resource with GPS coordinates
-                        rb.addResource(res)
-
-                    else:
-                        # Add odometry error to resource coordinates
-                        error = odo.getPosition() - gps.getPosition()
-                        res.x += error.x
-                        res.y += error.y
-
-                        # use resource with odo coordinates
-                        rb.addResource(Resource(res._json))
-
-                    return res
-
-        def decision(patch):
-            
-            last_epoch = patch['allepochs'][-1]
-            print(last_epoch)
-            # Average profit is the cost of one resource times the average of the ATCs
-            AP = patch['util']*last_epoch['price'] - sum(last_epoch['ATC'])/len(last_epoch['ATC'])
-        
-            # Linear decision probability
-            P = cp['firm']['entry_K']/10 * 1/(patch['util']*last_epoch['price']) * AP
-            
-            # Saturate for low profits
-            if abs(AP) < 0.075 * patch['util']*last_epoch['price']:
-                P = 0
-
-            robot.log.info(f"AP @ {patch['qlty']}: {round(AP)}")
-            robot.log.info(f"Entry/exit: {round(100*P, 1)}%")
-
-            if random.random() < abs(P):
-                if P < 0:
-                    return 'exit'
-                else:
-                    return 'entry'
-            else:
-                return None
 
         ##############################
         ##### STATE-MACHINE STEP #####
@@ -502,27 +511,23 @@ def controlstep():
         #### State::EVERY
         #########################################################################################################
         
-        # Perform submodules step
-        for module in [erb, rs, odo]:
+        # Perform submodule steps
+        for module in [erb, rs, odo, w3]:
             module.step()
 
         # Perform clock steps
         for clock in clocks.values():
             clock.time.step()
 
-        # # Perform file logging step
+        # Perform clocked tasks
+        if clocks['peering'].query():
+            peering()
+
         # if logs['resources'].query():
         #     logs['resources'].log([len(rb)])
 
         # if logs['fsm'].query():
         #     logs['fsm'].log([round(fsm.accumTime[state], 3) if state in fsm.accumTime else 0 for state in stateList ])
-
-        # robot.variables.set_attribute("odo_position",repr(odo.getPosition()))
-
-        if clocks['peering'].query():
-            peering()
-
-        w3.step()
 
         # Update blockchain state on the robot C++ object
         robot.variables.set_attribute("block", str(w3.get_block('last').height))
@@ -545,38 +550,32 @@ def controlstep():
         ######################################################################################################### 
 
         elif fsm.query(States.PLAN):
-            global last_leave_decision_epoch, last_join_decision_epoch
 
-            my_patch = w3.sc.getMyPatch(me.id)
-            
-            if my_patch:
+            if clocks['decision'].query():
 
-                if last_leave_decision_epoch < my_patch['epoch']['start']:
-                    print('New epoch on my patch')
-                    last_leave_decision_epoch = my_patch['epoch']['start']
+                my_patch = w3.sc.getMyPatch(me.id)
+                if my_patch:
 
-                    if decision(my_patch) == 'exit':
-                        res = Resource(my_patch['json'])
-                        fsm.setState(States.TRANSACT, message = "Leaving: %s" % res._desc, pass_along = {'function': 'leavePatch', 'inputs': []})
-
-                else:
-                    rb.addResource(my_patch['json'], update_best = True)
-                    fsm.setState(States.HOMING, message = None)
-
-            else:
-                
-                last_epoch, last_patch = w3.sc.getEpoch()
-                if last_epoch and last_join_decision_epoch < last_epoch['start']:
-                    print(f"New epoch on {last_patch['qlty']}")
-                    last_join_decision_epoch = last_epoch['start']
-
-                    if decision(last_patch) == 'entry':
-                        res = Resource(last_patch['json'])
-                        fsm.setState(States.TRANSACT, message = "Joining: %s" % res._desc, pass_along = {'function': 'joinPatch', 'inputs': res._calldata[:2]})
+                    if decision(my_patch, my_patch['totw']) == 'exit':
+                        fsm.setState(States.PLAN, message = "Leaving patch")
+                        tx = Transaction(sender = me.id, receiver = 2, value = 0, data = {'function': 'leavePatch', 'inputs': []}, nonce = last, timestamp = w3.custom_timer.time())
+                        w3.send_transaction(tx)
+                        my_patch = None
                     else:
-                        homing()
+                        rb.addResource(my_patch['json'], update_best = True)
+                        fsm.setState(States.HOMING, message = None)
+
                 else:
-                    homing()
+                    all_patches = w3.sc.getPatches()
+                    for patch in all_patches:
+                        if decision(patch, len(w3.sc.robots)-sum([p['totw'] for p in w3.sc.patches])) == 'entry':
+                            tx = Transaction(me.id, data = {'function': 'joinPatch', 'inputs': [patch['id']]}, nonce = last, timestamp = w3.custom_timer.time())
+                            w3.send_transaction(tx)
+                            rb.addResource(patch['json'], update_best = True)
+                            fsm.setState(States.HOMING, message = f"Joining: {patch['json']}")
+                            break
+            else:
+                homing()
 
         #########################################################################################################
         #### State::HOMING  
@@ -587,65 +586,50 @@ def controlstep():
             arrived = grouping(rb.best)
 
             if arrived:
-                
+
                 my_patch = w3.sc.getMyPatch(me.id)
-                block    = w3.get_block('latest')
 
                 if my_patch:
                     rb.addResource(my_patch['json'], update_best = True)
-
-                    if block.height >= my_patch['epoch']['start']+2 and str(me.id) not in my_patch['epoch']['robots']: 
-                        Trip(my_patch)
-                        fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
-                else:
-                    fsm.setState(States.PLAN, message = None)
-
-            if clocks['block'].query():
-                fsm.setState(States.PLAN, message = None)
+                    Trip(my_patch)
+                    fsm.setState(States.FORAGE, message = 'Foraging: %s' % (rb.best._desc))
 
         #########################################################################################################
         #### State::FORAGE
         #########################################################################################################
         elif fsm.query(States.FORAGE):
 
-            myPatch = w3.sc.getMyPatch(me.id)
+            # Distance to resource
+            distance = nav.get_distance_to(rb.best._pr)
 
-            if myPatch == None or myPatch == "" or myPatch == []:
-                fsm.setState(States.PLAN, message = "Falsely foraging")
+            # Resource virtual sensor
+            resource = sensing()
+            found = resource and resource._p == rb.best._p
+            finished = False
+
+            if found:
+                rb.best = resource
+
+            if found and distance < 0.9*rb.best.radius:
+                robot.variables.set_attribute("foraging", "True")
+                nav.avoid(move = True)
+
+                finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
+
+                # if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
+                #     finished = True
 
             else:
+                nav.navigate_with_obstacle_avoidance(rb.best._pr)
 
-                # Distance to resource
-                distance = nav.get_distance_to(rb.best._pr)
+            ### SHORT-RUN DECISION MAKING
+            if finished:
+                robot.variables.set_attribute("foraging", "")
 
-                # Resource virtual sensor
-                resource = sensing()
-                found = resource and resource._p == rb.best._p
-                finished = False
+                # # Log the result of the trip
+                # logs['firm'].log([*str(tripList[-1]).split()])
 
-                if found:
-                    rb.best = resource
-
-                if found and distance < 0.9*rb.best.radius:
-                    robot.variables.set_attribute("foraging", "True")
-                    nav.avoid(move = True)
-
-                    finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
-
-                    # if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
-                    #     finished = True
-
-                else:
-                    nav.navigate_with_obstacle_avoidance(rb.best._pr)
-
-                ### SHORT-RUN DECISION MAKING
-                if finished:
-                    robot.variables.set_attribute("foraging", "")
-
-                    # # Log the result of the trip
-                    # logs['firm'].log([*str(tripList[-1]).split()])
-
-                    fsm.setState(States.DROP, message = "Collected %s // Profit: %s" % (tripList[-1].Q, round(tripList[-1].profit,2)))
+                fsm.setState(States.DROP, message = "Collected %s // Profit: %s" % (tripList[-1].Q, round(tripList[-1].profit,2)))
 
         #########################################################################################################
         #### State::DROP
@@ -674,25 +658,6 @@ def controlstep():
                             robot.variables.set_attribute("dropResource", "")   
                             fsm.setState(States.PLAN, message = "Dropped: %s" % rb.best._desc)                       
 
-        #########################################################################################################
-        #### State::TRANSACT  
-        #########################################################################################################
-
-        elif fsm.query(States.TRANSACT):
-
-            homing()
-
-            if not txs['buy']:
-
-                txdata = fsm.pass_along
-                txs['buy'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['buy'])
-
-            if w3.get_transaction_receipt(txs['buy'].id):
-
-                txs['buy'] = None
-                fsm.setState(States.PLAN, message = "Transaction success")
-
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
 #########################################################################################################################
@@ -702,15 +667,20 @@ def reset():
 
 def destroy():
     if startFlag:
-        # w3.geth.miner.stop()
         w3.stop_mining()
-        # w3.display_chain()
         txs = w3.get_all_transactions()
         if len(txs) != len(set([tx.id for tx in txs])):
             print(f'REPEATED TRANSACTIONS ON CHAIN: #{len(txs)-len(set([tx.id for tx in txs]))}')
 
+
         for key, value in w3.sc.state.items():
-            print(f"{key}: {value}")
+            
+            if isinstance(value, list):
+                print(f"{key}:")
+                for item in value:
+                    print(f"{item}")  # Indented list item for clarity
+            else:
+                print(f"{key}: {value}")
 
         name   = 'sc.csv'
         header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
@@ -719,10 +689,6 @@ def destroy():
         name   = 'firm.csv'
         header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-
-        name   = 'epoch.csv'
-        header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
-        logs['epoch'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
         
         name   = 'block.csv'
         header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
@@ -732,12 +698,6 @@ def destroy():
         for trip in tripList:
             if trip.finished:
                 logs['firm'].log([*str(trip).split()])
-
-        # Log each epoch over the operation of the swarm
-        epochs = w3.sc.getAllEpochs()
-        for resource_id, resource_epochs in epochs.items():
-            for epoch in resource_epochs:
-                logs['epoch'].log([resource_id]+[str(x).replace(" ","") for x in epoch.values()])
 
         # Log each block over the operation of the swarm
         blockchain = w3.chain

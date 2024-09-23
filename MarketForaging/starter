@@ -25,6 +25,10 @@ envsubst < $ARGOSTEMPLATE > $ARGOSFILE
 # cp -r $EXPERIMENTFOLDER/controllers/docker/* $DOCKERFOLDER/geth/python_scripts/
 
 echo "+-----------------------------------------------------------+"
+echo "Sending smart contracts"
+cp $SCFILE $TOYCHFOLDER/scs/deploy.py
+
+echo "+-----------------------------------------------------------+"
 echo "Cleaning logs folder..."
 
 eval $(echo "rm -rf logs/{$(($NUMROBOTS+1))..100}")
@@ -52,15 +56,15 @@ eval $(echo "rm -rf logs/{$(($NUMROBOTS+1))..100}")
 echo "+-----------------------------------------------------------+"
 echo "Starting Experiment"
 
-# for opt in "$@"; do
-# if [[ $opt == "--logs" || $opt == "-l" ]]; then
-#     ./tmux-all -l monitor.log
-# fi
+for opt in "$@"; do
+if [[ $opt == "--logs" || $opt == "-l" ]]; then
+    ./tmux-all -l monitor.log
+fi
 
-# if [[ $opt == "--python" || $opt == "-p" ]]; then
-#     ./tmux-all -s python
-# fi
-# done
+if [[ $opt == "--python" || $opt == "-p" ]]; then
+    ./tmux-all -s python
+fi
+done
 
 for opt in "$@"; do
 if [[ $opt == "--start" || $opt == "-s" ]]; then

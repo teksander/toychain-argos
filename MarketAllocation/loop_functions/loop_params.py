@@ -28,10 +28,10 @@ params['generic']['regen_rate'] = eval(os.environ["REGENRATE"])
 
 # Parameters for marketplace
 params['market'] = dict()
-params['market']['x'] = -0.25*params['generic']['arena_size']
-params['market']['y'] = -0.25*params['generic']['arena_size']
+params['market']['x'] = 0
+params['market']['y'] = 0
 # params['market']['r'] = 0.15 *params['generic']['arena_size'] * math.sqrt(1/math.pi)
-params['market']['r'] = 2.5 * 0.073/2 * math.sqrt(params['generic']['num_robots'])
+params['market']['r'] = 2 * 0.073/2 * math.sqrt(params['generic']['num_robots'])
 
 # Parameters for cache
 params['cache'] = dict()
@@ -50,22 +50,19 @@ params['patches'] = dict()
 
 params['patches']['distribution'] = 'fixed' 
 
-params['patches']['x'] = [ 0.25]
-params['patches']['y'] = [ 0.25]
-
-# params['patches']['x'] = [ -0.25, 0.25]
-# params['patches']['y'] = [ 0.25, -0.25]
+params['patches']['x'] = [ .25, -.25, .25, -.25]
+params['patches']['y'] = [ .25, .25, -.25, -.25]
 
 params['patches']['respawn']   = False
 params['patches']['known']     = True
-params['patches']['radius']    = 0.35
+params['patches']['radius']    = 0.2
 params['patches']['qtty_min']  = 50
 params['patches']['qtty_max']  = 50
 params['patches']['dist_min']  = 1.5 * params['cache']['r'] 
 params['patches']['dist_max']  = 5 * params['cache']['r']
 
 params['patches']['qualities'] = {'red', 'green' , 'blue', 'yellow'}
-params['patches']['counts'] = {'red': 0, 'green': 0 , 'blue': 1, 'yellow': 0}
+params['patches']['counts'] = {'red': 1, 'green': 1 , 'blue': 1, 'yellow': 1}
 params['patches']['radii']  = {k: params['patches']['radius'] for k in params['patches']['qualities']}
 
 # Parameters for resource economy

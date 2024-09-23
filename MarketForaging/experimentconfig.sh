@@ -13,20 +13,20 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 
 export CONTRACTADDRESS="${EXPERIMENTFOLDER}/scs/contractAddress.txt"
 export CONTRACTNAME="MarketForaging"
-export SCNAME="fixed"
+export SCNAME="noepochs"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
-export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.py" 
+# export SCTEMPLATE="${EXPERIMENTFOLDER}/scs/${SCNAME}.x.py" 
 
 export GENESISFILE="${DOCKERFOLDER}/geth/files/$GENESISNAME.json"
 
 # [ARGOS]
-export NUM1=20
-export CON1="${EXPERIMENTFOLDER}/controllers/main_collab.py"
+export NUM1=9
+export CON1="${EXPERIMENTFOLDER}/controllers/main_collab_noepochs.py"
 
 export NUM2=0
 export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
 
-export RABRANGE="0.8"
+export RABRANGE="2"
 export WHEELNOISE="0"
 export TPS=10
 export DENSITY="1"

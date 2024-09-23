@@ -56,11 +56,9 @@
       <params script="${CON2}"
       timeRate="1" />
     </python_controller>
-
-
-
   </controllers>
-    <loop_functions library="${ARGOSFOLDER}/build/libpy_loop_function_interface.so"
+
+  <loop_functions library="${ARGOSFOLDER}/build/libpy_loop_function_interface.so"
                   label="py_loop_function">
     <params script="${EXPERIMENTFOLDER}/loop_functions/loop_function.py"/>
   </loop_functions>
