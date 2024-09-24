@@ -2,7 +2,9 @@
 import random, math
 import time
 import logging
-from aux import Vector2D
+from controllers.utils import Vector2D
+
+tps = 10
 
 class GPS(object):
     """ GPS-based positioning sensor
@@ -23,8 +25,6 @@ class GPS(object):
 
     def getPosition(self):
         return Vector2D(self.robot.position.get_position()) 
-
-
 
 class Odometry(object):
     """ Odometry-based positioning sensor
@@ -299,10 +299,17 @@ class Navigate(object):
         # # Saturate wheel speeds
         # left, right = self.saturate(left, right)
 
-        # # Aggressive avoidance for frontal collisions
-        # if  vec_avoid.length > 0.01 and abs(vec_avoid.angle) < self.thresh_front_collision:
-        #     print(math.degrees(vec_avoid.angle), "Front Collision")
-        #     # left, right = self.avoid(left, right)
+        # Aggressive avoidance for frontal collisions
+        front_collision = vec_avoid.length > 0.01 and abs(vec_avoid.angle) < self.thresh_front_collision
+        if  front_collision or self.__accumulator_stuck:
+            self.__accumulator_stuck += 1
+            
+            if self.__accumulator_stuck > 2*tps:
+                right = -self.MAX_SPEED
+                left = -0.5*self.MAX_SPEED
+            
+            elif self.__accumulator_stuck > 3*tps:
+                self.__accumulator_stuck = 0
 
         # Set wheel speeds
         self.robot.epuck_wheels.set_speed(right, left)
@@ -409,8 +416,6 @@ class Navigate(object):
                 right = right/max(abs(left),abs(right))*self.MAX_SPEED
 
         return left, right
-
-
 
 class RandomWalk(object):
     """ Set up a Random-Walk loop on a background thread
