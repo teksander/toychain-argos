@@ -7,16 +7,17 @@ import time, sys, os, json
 import logging
 from hexbytes import HexBytes
 
-sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
-             os.environ['EXPERIMENTFOLDER']+'/loop_functions', \
-             os.environ['EXPERIMENTFOLDER']]
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
 
-from controllers.aux import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
-from controllers.groundsensor import Resource
+from controllers.utils import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
+from controllers.params import params as cp
 
-from controllers.control_params import params as cp
-from loop_params import params as lp
-from loop_helpers import *
+from loop_functions.utils import *
+from loop_functions.params import params as lp
+
+from controllers.actusensors.groundsensor import Resource
 
 random.seed(lp['generic']['seed'])
 
