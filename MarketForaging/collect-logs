@@ -22,12 +22,12 @@ new_rep=$(printf "%03d\n" $(($last_rep+1)))
 python3 << END
 import sys, os
 
-sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
-             os.environ['EXPERIMENTFOLDER']+'/loop_functions', \
-             os.environ['EXPERIMENTFOLDER']]
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
 
-import loop_params as lp
-import control_params as cp
+from controllers.params import params as cp
+from loop_functions.params import params as lp
 
 # Collect the loop parameters
 dict_list = [(param, value) for param, value in lp.params.items() if isinstance(value, dict)]
@@ -47,8 +47,8 @@ for name, param_dict in dict_list:
 END
 
 cp experimentconfig.sh $LOGSFOLDER
-cp $EXPERIMENTFOLDER/loop_functions/loop_params.py $LOGSFOLDER
-cp $EXPERIMENTFOLDER/controllers/control_params.py $LOGSFOLDER
+cp $EXPERIMENTFOLDER/loop_functions/params.py $LOGSFOLDER/loop_params.py
+cp $EXPERIMENTFOLDER/controllers/params.py $LOGSFOLDER/control_params.py
 
 # # Collect geth related logs from docker folder into /logs/
 # for ID in $(seq 1 $NUMROBOTS); do
