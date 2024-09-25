@@ -47,6 +47,18 @@ class Peer(object):
         self.timeout = timeout
         self.timeoutStamp = time.time()
 
+    def getData(self, indices=[0]):
+        # If indices is given as a single integer, convert it to a list with one element
+        if isinstance(indices, int):
+            indices = [indices]
+        
+        # Collect the byte values from the specified indices
+        byte_data = bytes([self.data[index] for index in indices])
+        
+        # Convert the byte sequence back into an integer
+        data = int.from_bytes(byte_data, byteorder='big')
+
+        return data
 
 class ERANDB(object):
     """ Set up erandb transmitter on a background thread
@@ -96,10 +108,19 @@ class ERANDB(object):
         readings = self.robot.epuck_range_and_bearing.get_readings()
         return [reading[2] for reading in readings]
 
-    def setData(self, data, index = 0):
+    def setData(self, data, indices=0):
+        if isinstance(indices, int):
+            indices = [indices]
+        
+        data = int(data)
 
-        self.tData[index] = int(data)
-
+        if data <= 255:
+            self.tData[indices[-1]] = data
+        else:
+            byte_data = data.to_bytes(len(indices), byteorder='big')
+            for i, index in enumerate(indices):
+                self.tData[index] = byte_data[i]
+        
         self.robot.epuck_range_and_bearing.set_data(self.tData)
 
 
