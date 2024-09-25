@@ -3,7 +3,7 @@ import math, random, time
 import logging
 import json
 
-from aux import Vector2D
+from controllers.utils import Vector2D
 
 class GroundSensor(object):
     """ Set up a ground-sensor data acquisition loop on a background thread

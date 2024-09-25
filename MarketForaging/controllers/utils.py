@@ -1,17 +1,123 @@
 #!/usr/bin/env python3
-import time, sys, os
-import math
-import logging
-import socket, threading
-from multiprocessing.connection import Listener, Client
+import math, time
+import sys, os
+from aenum import Enum, auto
+# import socket, threading
+# from multiprocessing.connection import Listener, Client
 
-sys.path += [os.environ['MAINFOLDER'], \
-            ]
-
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
 
 from toychain.src.utils.helpers import CustomTimer
 
+import logging
 logger = logging.getLogger(__name__)
+
+class DynamicTimeFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # Get the current time from the custom timer
+        return 'test'
+
+class Timer:
+    def __init__(self, rate = 0, name = None):
+
+        self.time  = CustomTimer()
+        self.name  = name
+        self.rate  = rate
+        self.tick  = self.time.time()
+        self.isLocked = False
+
+    def query(self, reset = True):
+        if self.remaining() <= 0:
+            if reset: self.reset()
+            return True
+        else:
+            return False
+
+    def remaining(self):
+        if type(self.rate) is int or type(self.rate) is float:
+            return self.rate - (self.time.time() - self.tick)
+        else:
+            return 1
+
+    def set(self, rate, reset = True):
+        if not self.isLocked:
+            self.rate = rate
+            if reset:
+                self.reset()
+        return self
+
+    def reset(self):
+        if not self.isLocked:
+            self.tick = self.time.time()
+        return self
+
+    def start(self):
+        self.tick = self.time.time()
+        self.isLocked = False
+
+    def lock(self):
+        self.isLocked = True
+        return self
+
+    def unlock(self):
+        self.isLocked = False
+        return self
+
+class FiniteStateMachine(object):
+
+    def __init__(self, robot, start = None):
+        self.robot     = robot
+        self.storage   = None
+        self.prevState = start
+        self.currState = start
+        self.accumTime = dict()
+        self.startTime = time.time()
+        self.pass_along = None
+        
+    def setStorage(self,storage = None):
+        self.storage = storage
+
+    def getStorage(self):
+        return self.storage
+
+    def getPreviousState(self):
+        return self.prevState
+
+    def getState(self, ):
+        return self.currState
+
+    def getTimers(self):
+        return self.accumTime
+
+    def setState(self, state, message = "", pass_along = None):
+
+        self.onTransition(state, message)
+
+        if self.currState not in self.accumTime:
+            self.accumTime[self.currState] = 0
+
+        self.accumTime[self.currState] += time.time() - self.startTime
+        self.prevState = self.currState
+        self.currState = state
+        self.startTime = time.time()
+        self.pass_along = pass_along
+    
+    def query(self, state, previous = False):
+        if previous:
+            return self.prevState == state
+        else:
+            return self.currState == state
+
+    def onTransition(self, state, message):
+        # Robot actions to perform on every transition
+
+        if message != None:
+            self.robot.log.info("%s -> %s%s", self.currState, state, ' | '+message)
+        
+        self.robot.variables.set_attribute("dropResource", "")
+        self.robot.variables.set_attribute("state", str(state))
 
 class TxTimer:
     def __init__(self, rate, name = None):
@@ -120,55 +226,6 @@ class Accumulator:
         self.isLocked = False
         return self
 
-
-
-class Timer:
-    def __init__(self, rate = 0, name = None):
-
-        self.time  = CustomTimer()
-        self.name  = name
-        self.rate  = rate
-        self.tick  = self.time.time()
-        self.isLocked = False
-
-    def query(self, reset = True):
-        if self.remaining() <= 0:
-            if reset: self.reset()
-            return True
-        else:
-            return False
-
-    def remaining(self):
-        if type(self.rate) is int or type(self.rate) is float:
-            return self.rate - (self.time.time() - self.tick)
-        else:
-            return 1
-
-    def set(self, rate, reset = True):
-        if not self.isLocked:
-            self.rate = rate
-            if reset:
-                self.reset()
-        return self
-
-    def reset(self):
-        if not self.isLocked:
-            self.tick = self.time.time()
-        return self
-
-    def start(self):
-        self.tick = self.time.time()
-        self.isLocked = False
-
-    def lock(self):
-        self.isLocked = True
-        return self
-
-    def unlock(self):
-        self.isLocked = False
-        return self
-
-
 class TicToc(object):
     """ Pendulum Class to Synchronize Output Times
     """
@@ -197,105 +254,104 @@ class TicToc(object):
             # logger.warning('{} Pendulum too Slow. Elapsed: {}'.format(self.name,dtime))
             pass
 
+# class TCP_mp(object):
+#     """ Set up TCP_server on a background thread
+#     The __hosting() method will be started and it will run in the background
+#     until the application exits.
+#     """
 
-class TCP_mp(object):
-    """ Set up TCP_server on a background thread
-    The __hosting() method will be started and it will run in the background
-    until the application exits.
-    """
-
-    def __init__(self, data = None, host = None, port = None):
-        """ Constructor
-        :type data: any
-        :param data: Data to be sent back upon request
-        :type host: str
-        :param host: IP address to host TCP server at
-        :type port: int
-        :param port: TCP listening port for enodes
-        """
+#     def __init__(self, data = None, host = None, port = None):
+#         """ Constructor
+#         :type data: any
+#         :param data: Data to be sent back upon request
+#         :type host: str
+#         :param host: IP address to host TCP server at
+#         :type port: int
+#         :param port: TCP listening port for enodes
+#         """
         
-        self.data = data
-        self.host = host
-        self.port = port  
+#         self.data = data
+#         self.host = host
+#         self.port = port  
 
-        self.running  = False
-        self.received = []
+#         self.running  = False
+#         self.received = []
 
-    def __hosting(self):
-        """ This method runs in the background until program is closed """ 
-        logger.info('TCP server running')
+#     def __hosting(self):
+#         """ This method runs in the background until program is closed """ 
+#         logger.info('TCP server running')
 
-        # Setup the listener
-        listener = Listener((self.host, self.port))
+#         # Setup the listener
+#         listener = Listener((self.host, self.port))
 
-        while True:
-            try:
-                __conn = listener.accept()
-                __call = __conn.recv()
-                __conn.send(self.data[__call])
+#         while True:
+#             try:
+#                 __conn = listener.accept()
+#                 __call = __conn.recv()
+#                 __conn.send(self.data[__call])
 
-            except Exception as e:
-                print('TCP send failed')
+#             except Exception as e:
+#                 print('TCP send failed')
 
-            if not self.running:
-                __conn.close()
-                break 
+#             if not self.running:
+#                 __conn.close()
+#                 break 
                 
-    def request(self, data = None, host = None, port = None):
-        """ This method is used to request data from a running TCP server """
+#     def request(self, data = None, host = None, port = None):
+#         """ This method is used to request data from a running TCP server """
 
-        __msg = ""
+#         __msg = ""
 
-        if not data:
-            data = self.data
-        if not host:
-            host = self.host
-        if not port:
-            port = self.port
+#         if not data:
+#             data = self.data
+#         if not host:
+#             host = self.host
+#         if not port:
+#             port = self.port
   
-        try:
-            __conn = Client((host, port))
-            __conn.send(data)
-            __msg  = __conn.recv()
-            __conn.close()
+#         try:
+#             __conn = Client((host, port))
+#             __conn.send(data)
+#             __msg  = __conn.recv()
+#             __conn.close()
 
-            return __msg
+#             return __msg
 
-        except:
-            logger.error('TCP request failed')
+#         except:
+#             logger.error('TCP request failed')
 
-    def getNew(self):
-        if self.running:
-            temp = self.received
-            self.received = []
-            return temp
-        else:
-            print('TCP server is OFF')
-            return []
+#     def getNew(self):
+#         if self.running:
+#             temp = self.received
+#             self.received = []
+#             return temp
+#         else:
+#             print('TCP server is OFF')
+#             return []
 
-    def setData(self, data):
-        self.data = data   
+#     def setData(self, data):
+#         self.data = data   
 
-    def start(self):
-        """ This method is called to start __hosting a TCP server """
+#     def start(self):
+#         """ This method is called to start __hosting a TCP server """
 
-        if not self.running:
-            # Initialize background daemon thread
-            thread = threading.Thread(target=self.__hosting, args=())
-            thread.daemon = True 
+#         if not self.running:
+#             # Initialize background daemon thread
+#             thread = threading.Thread(target=self.__hosting, args=())
+#             thread.daemon = True 
 
-            # Start the execution                         
-            thread.start()   
-            self.running = True
-        else:
-            print('TCP server already ON')  
+#             # Start the execution                         
+#             thread.start()   
+#             self.running = True
+#         else:
+#             print('TCP server already ON')  
 
-    def stop(self):
-        """ This method is called before a clean exit """   
-        self.running = False
-        logger.info('TCP server is OFF') 
+#     def stop(self):
+#         """ This method is called before a clean exit """   
+#         self.running = False
+#         logger.info('TCP server is OFF') 
 
-class TCP_server(object):
+# class TCP_server(object):
     """ Set up TCP_server on a background thread
     The __hosting() method will be started and it will run in the background
     until the application exits.
@@ -433,8 +489,6 @@ class TCP_server(object):
         self.__stop = 1
         logger.info('TCP Server OFF') 
 
-
-
 class Peer(object):
     """ Establish the Peer class 
     """
@@ -470,97 +524,6 @@ class Peer(object):
         self.trials = 0
         self.timeout = timeout
         self.timeoutStamp = time.time()
-
-class PeerBuffer(object):
-    """ Establish the Peer class 
-    """
-    def __init__(self, ageLimit = 2):
-        """ Constructor
-        :type id__: str
-        :param id__: id of the peer
-        """
-        # Add the known peer details
-        self.buffer = []
-        self.ageLimit = ageLimit
-        self.__stop = True
-
-    def start(self):
-        """ This method is called to start calculating peer ages"""
-        if self.__stop:  
-            self.__stop = False
-
-            # Initialize background daemon thread
-            self.thread = threading.Thread(target=self.__aging, args=())
-            self.thread.daemon = True   
-            # Start the execution                         
-            self.thread.start()   
-
-    def stop(self):
-        """ This method is called before a clean exit """   
-        self.__stop = True
-        self.thread.join()
-        logger.info('Peer aging stopped') 
-
-    def __aging(self):
-        """ This method runs in the background until program is closed 
-        self.age is the time elapsed since the robots meeting.
-        """            
-        while True:
-
-            self.step()
-
-            if self.__stop:
-                break
-            else:
-                time.sleep(0.05);   
-
-    def step(self):
-        """ This method performs a single sequence of operations """          
-
-        for peer in self.buffer:
-            peer.age = time.time() - peer.tStamp
-
-            if peer.age > self.ageLimit:
-                peer.kill()
-
-            if peer.timeout != 0:
-                if (peer.timeout - (time.time() - peer.timeoutStamp)) <= 0:
-                    peer.timeout = 0      
-
-
-    def addPeer(self, newIds):
-        """ This method is called to add a peer Id
-            newPeer is the new peer object
-        """   
-        for newId in newIds:
-            if newId not in self.getIds():
-                newPeer = Peer(newId)  
-                self.buffer.append(newPeer)
-            else:
-                self.getPeerById(newId).resetAge()
-
-    def removePeer(self, oldId):
-        """ This method is called to remove a peer Id
-            newPeer is the new peer object
-        """   
-        self.buffer.pop(self.getIds().index(oldId))
-
-    def getIds(self): 
-        return [peer.id for peer in self.buffer]
-    def getAges(self):
-        return [peer.age for peer in self.buffer]
-    def getEnodes(self):
-        return [peer.enode for peer in self.buffer]
-    def getIps(self):
-        return [peer.ip for peer in self.buffer]       
-    def getkeys(self):
-        return [peer.key for peer in self.buffer]
-
-    def getPeerById(self, id):
-        return self.buffer[self.getIds().index(id)]
-
-    def getPeerByEnode(self, enode):
-        return self.buffer[self.getEnodes().index(enode)]
 
 class Logger(object):
     """ Logging Class to Record Data to a File
@@ -605,15 +568,6 @@ class Logger(object):
 
     def close(self):
         self.file.close()
-
-def readEnode(enode, output = 'id'):
-    # Read IP or ID from an enode
-    ip_ = enode.split('@',2)[1].split(':',2)[0]
-
-    if output == 'ip':
-        return ip_
-    elif output == 'id':
-        return ip_.split('.')[-1] 
 
 class Vector2D:
     """A two-dimensional vector with Cartesian coordinates."""
@@ -758,6 +712,15 @@ class mydict(dict):
         if n == 0:
             return mydict([[key, round(self[key])] for key in self])
         return mydict([[key, round(self[key], n)] for key in self])
+
+def readEnode(enode, output = 'id'):
+    # Read IP or ID from an enode
+    ip_ = enode.split('@',2)[1].split(':',2)[0]
+
+    if output == 'ip':
+        return ip_
+    elif output == 'id':
+        return ip_.split('.')[-1] 
 
 def identifiersExtract(robotID, query = 'IP'):
 

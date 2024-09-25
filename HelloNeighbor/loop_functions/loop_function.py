@@ -13,9 +13,8 @@ sys.path += [mainFolder, experimentFolder]
 
 from controllers.utils import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
 from controllers.params import params as cp
-
-from loop_functions.utils import *
 from loop_functions.params import params as lp
+from loop_functions.utils import *
 
 from controllers.actusensors.groundsensor import Resource
 
@@ -23,7 +22,6 @@ random.seed(lp['generic']['seed'])
 
 log_folder = lp['environ']['EXPERIMENTFOLDER'] + '/logs/0/'
 os.makedirs(os.path.dirname(log_folder), exist_ok=True)   
-
 
 # /* Global Variables */
 #######################################################################

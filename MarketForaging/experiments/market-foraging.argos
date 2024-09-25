@@ -33,7 +33,7 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_collab.py"
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_collab_noepochs.py"
       timeRate="1" />
     </python_controller>
 

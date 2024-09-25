@@ -22,10 +22,9 @@ from controllers.params import params as cp
 from loop_functions.params import params as lp
 
 from toychain.src.utils.helpers import gen_enode
-from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
-from toychain.src.consensus.ProofOfWork import ProofOfWork
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority, BLOCK_PERIOD
 from toychain.src.Node import Node
-from toychain.src.Block import Block
+from toychain.src.Block import Block, State
 from toychain.src.Transaction import Transaction
 
 # /* Global Variables */
@@ -41,6 +40,8 @@ txList, tripList, submodules = [], [], []
 global clocks, counters, logs, txs
 clocks, counters, logs, txs = dict(), dict(), dict(), dict()
 
+GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
+
 # /* Logging Levels for Console and File */
 #######################################################################
 import logging
@@ -51,21 +52,13 @@ logtofile = False
 #######################################################################
 
 clocks['peering'] = Timer(10)
-clocks['sensing'] = Timer(2)
-clocks['block']   = Timer(150)
+clocks['block']   = Timer(BLOCK_PERIOD)
 
 # /* Experiment State-Machine */
 #######################################################################
 
 class States(Enum):
     IDLE   = 1
-    PLAN   = 2
-    ASSIGN = 3
-    FORAGE = 4
-    DROP   = 5 
-    JOIN   = 6
-    LEAVE  = 7
-    HOMING = 8
     TRANSACT = 9
     RANDOM   = 10
 
@@ -104,7 +97,7 @@ def init():
 
     # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
-    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority())
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(genesis = GENESIS))
 
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
@@ -168,7 +161,7 @@ def controlstep():
 
     def peering():
 
-        # Get the current peers from erb
+        # Get the current peers from erb if they have higher difficulty chain
         erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()}
 
         # Add peers on the toychain

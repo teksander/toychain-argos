@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import time
-from controllers.aux import Timer
+from controllers.utils import Timer
 
 class RGBLEDs(object):
     """ Interact with the 3 RGB leds on the top of the pi-puck

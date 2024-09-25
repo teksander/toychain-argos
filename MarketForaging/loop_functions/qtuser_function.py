@@ -6,15 +6,14 @@ import random, math
 import sys, os
 import hashlib
 
-sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
-             os.environ['EXPERIMENTFOLDER']+'/loop_functions', \
-             os.environ['EXPERIMENTFOLDER']]
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
 
-from controllers.groundsensor import Resource
-from controllers.aux import Vector2D
-
-from controllers.control_params import params as cp
-from loop_params import params as lp
+from controllers.actusensors.groundsensor import Resource
+from controllers.utils import Vector2D
+from controllers.params import params as cp
+from loop_functions.params import params as lp
 
 
 lp['generic']['show_rays'] = False

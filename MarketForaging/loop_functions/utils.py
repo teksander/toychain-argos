@@ -5,12 +5,12 @@
 import random, math
 import sys, os, psutil
 
-sys.path += [os.environ['EXPERIMENTFOLDER']+'/controllers', \
-             os.environ['EXPERIMENTFOLDER']+'/loop_functions', \
-             os.environ['EXPERIMENTFOLDER']]
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
 
-from aux import Vector2D
-from loop_params import params as lp
+from controllers.utils import Vector2D
+from loop_functions.params import params as lp
 
 for file in lp['files'].values():
     open(file, 'w+').close()

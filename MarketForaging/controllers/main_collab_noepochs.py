@@ -7,22 +7,20 @@ import random, math
 import time, sys, os
 import json
 
+mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
-sys.path += [os.environ['MAINFOLDER'], \
-             os.environ['EXPERIMENTFOLDER']+'/controllers', \
-             os.environ['EXPERIMENTFOLDER']
-            ]
+sys.path += [mainFolder, experimentFolder]
 
-from controllers.movement import RandomWalk, Navigate, Odometry, OdoCompass, GPS
-from controllers.groundsensor import ResourceVirtualSensor, Resource
-from controllers.erandb import ERANDB
-from controllers.rgbleds import RGBLEDs
-from controllers.aux import *
-from controllers.aux import Timer
-from controllers.statemachine import *
+from controllers.actusensors.movement     import RandomWalk, Navigate, Odometry, OdoCompass, GPS
+from controllers.actusensors.groundsensor import ResourceVirtualSensor, Resource
+from controllers.actusensors.erandb       import ERANDB
+from controllers.actusensors.rgbleds      import RGBLEDs
+from controllers.utils import *
+from controllers.utils import Timer
+from controllers.utils import FiniteStateMachine
 
-from controllers.control_params import params as cp
-from loop_functions.loop_params import params as lp
+from controllers.params import params as cp
+from loop_functions.params import params as lp
 
 from toychain.src.utils.helpers import gen_enode
 from toychain.src.consensus.ProofOfAuth import ProofOfAuthority, BLOCK_PERIOD
@@ -60,6 +58,21 @@ clocks['decision'] = Timer(BLOCK_PERIOD*cp['firm']['entry_f'])
 # Store the position of the market and cache
 market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp['market']['r']})
 cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
+
+# /* Experiment State-Machine */
+#######################################################################
+
+class States(Enum):
+    IDLE   = 1
+    PLAN   = 2
+    ASSIGN = 3
+    FORAGE = 4
+    DROP   = 5 
+    JOIN   = 6
+    LEAVE  = 7
+    HOMING = 8
+    TRANSACT = 9
+    RANDOM   = 10
 
 global geth_peer_count
 GENESIS = Block(0, 0000, [], [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))], 0, 0, 0, nonce = 1, state = State())
@@ -332,7 +345,7 @@ def controlstep():
     def peering():
 
         # Get the current peers from erb
-        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
+        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()}
 
         # Add peers on the toychain
         for enode in erb_enodes-set(w3.peers):
@@ -530,9 +543,13 @@ def controlstep():
         #     logs['fsm'].log([round(fsm.accumTime[state], 3) if state in fsm.accumTime else 0 for state in stateList ])
 
         # Update blockchain state on the robot C++ object
-        robot.variables.set_attribute("block", str(w3.get_block('last').height))
-        robot.variables.set_attribute("block_hash", str(w3.get_block('last').hash))
-        robot.variables.set_attribute("state_hash", str(w3.get_block('last').state.state_hash))
+        last_block = w3.get_block('last')
+        robot.variables.set_attribute("block", str(last_block.height))
+        robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        robot.variables.set_attribute("block_hash", str(last_block.hash))
+        robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
+
+        erb.setData(last_block.total_difficulty, index=1)
 
         # Get perfect position if at nest
         if robot.variables.get_attribute("at") == "cache":

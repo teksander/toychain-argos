@@ -5,8 +5,7 @@ from aenum import Enum, auto
 # import socket, threading
 # from multiprocessing.connection import Listener, Client
 
-mainFolder = os.environ['MAINFOLDER']
-experimentFolder = os.environ['EXPERIMENTFOLDER']
+mainFolder, experimentFolder = os.environ['MAINFOLDER'], os.environ['EXPERIMENTFOLDER']
 sys.path += [mainFolder, experimentFolder]
 
 from toychain.src.utils.helpers import CustomTimer

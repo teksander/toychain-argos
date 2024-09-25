@@ -302,13 +302,14 @@ class Navigate(object):
         # Aggressive avoidance for frontal collisions
         front_collision = vec_avoid.length > 0.01 and abs(vec_avoid.angle) < self.thresh_front_collision
         if  front_collision or self.__accumulator_stuck:
+            # print(math.degrees(vec_avoid.angle), "Front Collision")
             self.__accumulator_stuck += 1
             
-            if self.__accumulator_stuck > 2*tps:
+            if self.__accumulator_stuck > 1*tps:
                 right = -self.MAX_SPEED
                 left = -0.5*self.MAX_SPEED
             
-            elif self.__accumulator_stuck > 3*tps:
+            if self.__accumulator_stuck > 2*tps:
                 self.__accumulator_stuck = 0
 
         # Set wheel speeds
