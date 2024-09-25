@@ -94,14 +94,20 @@ def draw_in_robot():
 	# Draw resources carried by robots
 	draw_resources_on_robots()
 
-	
-	# Draw block hash and state hash with circles
-	color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
-	color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
-	environment.qt_draw.circle([0,0,0.015], [], 0.075, color_block, True)
-	environment.qt_draw.circle([0,0,0.010], [], 0.1, color_state, True)
 
-	# Draw block number with boxes
+	# Draw block hash and state hash with circles
+	color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
+	color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
+	color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
+
+	tx_count = int(robot.variables.get_attribute("mempl_size"))
+
+	environment.qt_draw.circle([0,0,0.010], [], 0.100, color_state, True)
+	environment.qt_draw.circle([0,0,0.011], [], 0.075, color_block, True)
+	environment.qt_draw.circle([0,0,0.012+0.002*tx_count], [], 0.050, color_mempl, True)
+
+
+# Draw block number with boxes
 	# block_number = int(robot.variables.get_attribute("block"))
 	# box_size = 0.025
 	# tens = block_number//10

@@ -76,6 +76,8 @@ def init():
     robot.variables.set_attribute("tdiff", "0")
     robot.variables.set_attribute("hash", str(hash("genesis")))
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
+    robot.variables.set_attribute("mempl_hash", str(hash("genesis")))
+    robot.variables.set_attribute("mempl_size", "0")
 
     # /* Initialize Console Logging*/
     #######################################################################
@@ -162,7 +164,7 @@ def controlstep():
     def peering():
 
         # Get the current peers from erb if they have higher difficulty chain
-        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()}
+        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()%255 or peer.data[2] != w3.mempool_hash(astype='int')}
 
         # Add peers on the toychain
         for enode in erb_enodes-set(w3.peers):
@@ -235,8 +237,11 @@ def controlstep():
         robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
         robot.variables.set_attribute("block_hash", str(last_block.hash))
         robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
+        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
+        robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
 
-        erb.setData(last_block.total_difficulty, index=1)
+        erb.setData(last_block.total_difficulty % 255, index=1)
+        erb.setData(w3.mempool_hash(astype='int'), index=2)
 
         #########################################################################################################
         #### State::IDLE
