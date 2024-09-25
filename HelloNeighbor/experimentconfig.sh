@@ -29,7 +29,7 @@ export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
 export RABRANGE="0.5"
 export WHEELNOISE="0"
 export TPS=10
-export DENSITY="1"
+export DENSITY="2"
 
 export NUMROBOTS=$(echo $NUM1+$NUM2 | bc)
 export ARENADIM=$(echo "scale=3 ; sqrt($NUMROBOTS/$DENSITY)" | bc)

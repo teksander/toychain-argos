@@ -67,25 +67,25 @@
   <!-- *********************** -->
   <!-- * Arena configuration * -->
   <!-- *********************** -->
-  <arena size="3.000, 3.000, 1.5" center="0,0,0">
+  <arena size="2.121, 2.121, 1.5" center="0,0,0">
 
  <floor id="f" source="image" path="/home/eksander/toychain-argos/HelloNeighbor/experiments/floors/market.png" />
 
-    <box id="wall_north" size="3.000,0.06,0.1" movable="false">
-      <body position="0,1.500,0" orientation="0,0,0" />
+    <box id="wall_north" size="2.121,0.06,0.1" movable="false">
+      <body position="0,1.060,0" orientation="0,0,0" />
     </box>
-    <box id="wall_south" size="3.000,0.06,0.1" movable="false">
-      <body position="0,-1.500,0" orientation="0,0,0" />
+    <box id="wall_south" size="2.121,0.06,0.1" movable="false">
+      <body position="0,-1.060,0" orientation="0,0,0" />
     </box>
-    <box id="wall_east" size="0.06,3.000,0.1" movable="false">
-      <body position="1.500,0,0" orientation="0,0,0" />
+    <box id="wall_east" size="0.06,2.121,0.1" movable="false">
+      <body position="1.060,0,0" orientation="0,0,0" />
     </box>
-    <box id="wall_west" size="0.06,3.000,0.1" movable="false">
-      <body position="-1.500,0,0" orientation="0,0,0" />
+    <box id="wall_west" size="0.06,2.121,0.1" movable="false">
+      <body position="-1.060,0,0" orientation="0,0,0" />
     </box>
 
     <distribute>
-      <position method="uniform" min="-.600,-.600,0" max=".600,.600,0" /> 
+      <position method="uniform" min="-.424,-.424,0" max=".424,.424,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
       <entity quantity="9" max_trials="15"> 
         <e-puck id="bc" >
@@ -95,7 +95,7 @@
     </distribute>
 
     <distribute>
-      <position method="uniform" min="-.600,-.600,0" max=".600,.600,0" /> 
+      <position method="uniform" min="-.424,-.424,0" max=".424,.424,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
       <entity quantity="0" max_trials="15" base_num="9"> 
         <e-puck id="gr" >

@@ -130,25 +130,25 @@ def init():
     robot.log.info('Initialising RandB board...')
     erb = ERANDB(robot, cp['erbDist'] , cp['erbtFreq'])
 
-    #/* Init Resource-Sensors */
-    robot.log.info('Initialising resource sensor...')
-    rs = ResourceVirtualSensor(robot)
+    # #/* Init Resource-Sensors */
+    # robot.log.info('Initialising resource sensor...')
+    # rs = ResourceVirtualSensor(robot)
     
     # /* Init Random-Walk, __walking process */
     robot.log.info('Initialising random-walk...')
     rw = RandomWalk(robot, cp['scout_speed'])
 
-    # /* Init Navigation, __navigate process */
-    robot.log.info('Initialising navigation...')
-    nav = Navigate(robot, cp['recruit_speed'])
+    # # /* Init Navigation, __navigate process */
+    # robot.log.info('Initialising navigation...')
+    # nav = Navigate(robot, cp['recruit_speed'])
 
-    # /* Init odometry sensor */
-    robot.log.info('Initialising odometry...')
-    odo = OdoCompass(robot)
+    # # /* Init odometry sensor */
+    # robot.log.info('Initialising odometry...')
+    # odo = OdoCompass(robot)
 
-    # /* Init GPS sensor */
-    robot.log.info('Initialising gps...')
-    gps = GPS(robot)
+    # # /* Init GPS sensor */
+    # robot.log.info('Initialising gps...')
+    # gps = GPS(robot)
 
     # /* Init LEDs */
     rgb = RGBLEDs(robot)
@@ -348,20 +348,3 @@ def destroy():
 #########################################################################################################################
 #########################################################################################################################
 
-
-def getEnodes():
-    return [peer['enode'] for peer in w3.geth.admin.peers()]
-
-def getEnodeById(__id, gethEnodes = None):
-    if not gethEnodes:
-        gethEnodes = getEnodes() 
-
-    for enode in gethEnodes:
-        if readEnode(enode, output = 'id') == __id:
-            return enode
-
-def getIds(__enodes = None):
-    if __enodes:
-        return [enode.split('@',2)[1].split(':',2)[0].split('.')[-1] for enode in __enodes]
-    else:
-        return [enode.split('@',2)[1].split(':',2)[0].split('.')[-1] for enode in getEnodes()]

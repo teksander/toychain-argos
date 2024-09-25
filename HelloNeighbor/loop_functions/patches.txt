@@ -1,1 +1,0 @@
-{"x": 0.75, "y": 0.75, "radius": 0.35, "quantity": 50, "quality": "blue", "utility": 200}
