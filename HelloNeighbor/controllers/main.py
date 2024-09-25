@@ -69,10 +69,6 @@ class States(Enum):
     TRANSACT = 9
     RANDOM   = 10
 
-# Store the position of the market and cache
-market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp['market']['r']})
-cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
-
 ####################################################################################################################################################################################
 #### INIT STEP #####################################################################################################################################################################
 ####################################################################################################################################################################################
@@ -83,17 +79,8 @@ def init():
     robotIP = '127.0.0.1'
     robot.variables.set_attribute("id", str(robotID))
     robot.variables.set_attribute("circle_color", "gray50")
-    robot.variables.set_attribute("scresources", "[]")
-    robot.variables.set_attribute("foraging", "")
-    robot.variables.set_attribute("dropResource", "")
-    robot.variables.set_attribute("hasResource", "")
-    robot.variables.set_attribute("resourceCount", "0")
-    robot.variables.set_attribute("state", "")
-    robot.variables.set_attribute("forageTimer", "0")
-    robot.variables.set_attribute("quantity", "0")
-    robot.variables.set_attribute("block", "")
-    robot.variables.set_attribute("groupSize", "1")
     robot.variables.set_attribute("block", "0")
+    robot.variables.set_attribute("tdiff", "0")
     robot.variables.set_attribute("hash", str(hash("genesis")))
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
 
@@ -182,7 +169,7 @@ def controlstep():
     def peering():
 
         # Get the current peers from erb
-        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
+        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()}
 
         # Add peers on the toychain
         for enode in erb_enodes-set(w3.peers):
@@ -250,9 +237,13 @@ def controlstep():
             peering()
 
         # Update blockchain state on the robot C++ object
-        robot.variables.set_attribute("block", str(w3.get_block('last').height))
-        robot.variables.set_attribute("block_hash", str(w3.get_block('last').hash))
-        robot.variables.set_attribute("state_hash", str(w3.get_block('last').state.state_hash))
+        last_block = w3.get_block('last')
+        robot.variables.set_attribute("block", str(last_block.height))
+        robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        robot.variables.set_attribute("block_hash", str(last_block.hash))
+        robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
+
+        erb.setData(last_block.total_difficulty, index=1)
 
         #########################################################################################################
         #### State::IDLE

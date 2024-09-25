@@ -5,14 +5,15 @@ import logging
 class Peer(object):
     """ Establish the Peer class 
     """
-    def __init__(self, _id, _range, _bearing, _ip = None, _enode = None, _key = None):
+    def __init__(self, _data, _range, _bearing, _id = None, _ip = None, _enode = None, _key = None):
         """ Constructor
         :type _id: str
         :param _id: id of the peer
         """
 
         # range-and-bearing information
-        self.id       = _id
+        self.id       = _data[0]
+        self.data     = _data
         self.range    = _range
         self.bearing  = _bearing
         
@@ -80,7 +81,7 @@ class ERANDB(object):
 
         self.peers = []
         for reading in self.robot.epuck_range_and_bearing.get_readings():
-            self.peers.append(Peer(reading[0][0], reading[1], reading[2]))
+            self.peers.append(Peer(reading[0], reading[1], reading[2]))
 
 
     def getData(self):
