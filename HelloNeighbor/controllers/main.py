@@ -164,7 +164,7 @@ def controlstep():
     def peering():
 
         # Get the current peers from erb if they have higher difficulty chain
-        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.data[1] > w3.get_total_difficulty()%255 or peer.data[2] != w3.mempool_hash(astype='int')}
+        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
 
         # Add peers on the toychain
         for enode in erb_enodes-set(w3.peers):
@@ -240,8 +240,8 @@ def controlstep():
         robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
         robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
 
-        erb.setData(last_block.total_difficulty % 255, index=1)
-        erb.setData(w3.mempool_hash(astype='int'), index=2)
+        erb.setData(last_block.total_difficulty, indices=[1,2])
+        erb.setData(w3.mempool_hash(astype='int'), indices=3)
 
         #########################################################################################################
         #### State::IDLE
