@@ -27,7 +27,7 @@
         <positioning implementation="default" />
         <epuck_ground implementation="rot_z_only" />
         <epuck_proximity implementation="default" show_rays="false" />
-        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="true"/>
+        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
         <differential_steering implementation="default"/>
       </sensors>
       <!-- No required configuration -->

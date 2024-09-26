@@ -30,10 +30,10 @@ from controllers.params import params as cp
 from loop_functions.params import params as lp
 
 # Collect the loop parameters
-dict_list = [(param, value) for param, value in lp.params.items() if isinstance(value, dict)]
+dict_list = [(param, value) for param, value in lp.items() if isinstance(value, dict)]
 
 # Collect the control parameters
-dict_list.extend([('control', cp.params)])
+dict_list.extend([('control', cp)])
 
 # Collect the experiment configuration
 f = open('experimentconfig.sh', 'r')

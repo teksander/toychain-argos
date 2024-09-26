@@ -235,6 +235,7 @@ def init():
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
     robot.variables.set_attribute("mempl_hash", str(hash("genesis")))
     robot.variables.set_attribute("mempl_size", "0")
+    robot.variables.set_attribute("w3_peers", "[]")
 
     # /* Initialize Console Logging*/
     #######################################################################
@@ -548,13 +549,16 @@ def controlstep():
         last_block = w3.get_block('last')
         robot.variables.set_attribute("block", str(last_block.height))
         robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
+
+        # Only needed for visualization purposes
         robot.variables.set_attribute("block_hash", str(last_block.hash))
         robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
-        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
         robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
-
         erb.setData(last_block.total_difficulty, indices=[1,2])
         erb.setData(w3.mempool_hash(astype='int'), indices=3)
+        w3_peers = {peer for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
+        robot.variables.set_attribute("w3_peers", str([(peer.range, peer.bearing) for peer in w3_peers])) 
 
         # Get perfect position if at nest
         if robot.variables.get_attribute("at") == "cache":

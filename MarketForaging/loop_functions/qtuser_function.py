@@ -87,24 +87,22 @@ def draw_in_world():
 	
 def draw_in_robot():
 
-	# # Draw circle for visibility
-	# circle_color = robot.variables.get_attribute("circle_color")
-	# environment.qt_draw.circle([0,0,0.01], [], 0.05, circle_color, True)
-
 	# Draw resources carried by robots
 	draw_resources_on_robots()
 
-
-	# Draw block hash and state hash with circles
+	# Draw block/state/mempool hash as colored circles
 	color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
 	color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
 	color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
-
 	tx_count = int(robot.variables.get_attribute("mempl_size"))
-
 	environment.qt_draw.circle([0,0,0.010], [], 0.100, color_state, True)
 	environment.qt_draw.circle([0,0,0.011], [], 0.075, color_block, True)
 	environment.qt_draw.circle([0,0,0.012+0.002*tx_count], [], 0.050, color_mempl, True)
+
+	# Draw rays to w3 peers
+	w3_peers = eval(robot.variables.get_attribute("w3_peers"))
+	for peer_rb in w3_peers:
+		environment.qt_draw.ray([0, 0 , 0.01],[peer_rb[0]*math.cos(peer_rb[1]), peer_rb[0]*math.sin(peer_rb[1]) , 0.01], 'red', 0.15)
 
 
 # Draw block number with boxes
