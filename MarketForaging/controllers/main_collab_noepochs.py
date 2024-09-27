@@ -708,26 +708,21 @@ def destroy():
             else:
                 print(f"{key}: {value}")
 
-        name   = 'sc.csv'
-        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
-        logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-
+        # Log the result of the each trip performed by robot
         name   = 'firm.csv'
         header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
-        
-        name   = 'block.csv'
-        header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
-        logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-        # Log the result of the each trip performed by robot
         for trip in tripList:
             if trip.finished:
                 logs['firm'].log([*str(trip).split()])
 
         # Log each block over the operation of the swarm
-        blockchain = w3.chain
-        for block in blockchain:
+        name   = 'block.csv'
+        header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
+        logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+
+        for block in w3.chain:
             logs['block'].log(
                 [w3.custom_timer.time()-block.timestamp, 
                 block.timestamp, 
@@ -740,15 +735,38 @@ def destroy():
                 len(block.data), 
                 0
                 ])
-            
-            logs['sc'].log(
-                [block.timestamp, 
-                block.height, 
-                block.hash, 
-                block.parent_hash, 
-                block.state.balances.get(me.id,0),
-                block.state.n
-                ])
+
+        # Log the state of each block
+        name   = 'sc.csv'
+        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT', 'X','Y','QTTY', 'QLTY', 'ID', 'TOTW','number', 'start', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
+        logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+
+        for block in w3.chain:
+            for patch in block.state.patches:
+                logs['sc'].log(
+                    [block.timestamp, 
+                    block.height, 
+                    block.hash, 
+                    block.parent_hash, 
+                    block.state.balances.get(me.id,0),
+                    block.state.n,
+                    patch['x'],  # 'x' coordinate of the patch
+                    patch['y'],  # 'y' coordinate of the patch
+                    patch['qtty'],  # Patch quantity (qtty)
+                    patch['qlty'],  # Patch quality (qlty)
+                    patch['id'],  # Patch ID
+                    patch['totw'],  # Total weight or work in the patch (totw)
+                    patch['epoch']['number'],  # Epoch number
+                    patch['epoch']['start'],   # Epoch start time
+                    str(patch['epoch']['Q']).replace(' ', ''),  # Epoch 'Q' value
+                    str(patch['epoch']['TC']).replace(' ', ''),  # Epoch 'TC' value
+                    str(patch['epoch']['ATC']).replace(' ', ''),  # Epoch 'ATC' value
+                    patch['epoch']['price'],  # Price during the epoch
+                    str(patch['epoch']['robots']).replace(' ', ''),  # List of robots in the epoch
+                    patch['epoch']['TQ'],  # Total quantity (TQ) during the epoch
+                    patch['epoch']['AATC'],  # Average ATC during the epoch
+                    patch['epoch']['AP']  # Average price (AP) during the epoch
+                    ])
 
         
     print('Killed robot '+ me.id)

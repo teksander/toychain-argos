@@ -118,13 +118,13 @@ class Contract(StateMixin):
             
             self.patches[i]['epoch']['Q'].append(Q)
             self.patches[i]['epoch']['TC'].append(TC)
-            self.patches[i]['epoch']['ATC'].append(TC/Q)
+            self.patches[i]['epoch']['ATC'].append(round(TC/Q,1))
             self.patches[i]['epoch']['robots'].append(self.msg.sender)
 
             logger.info(f"Drop #{len(self.patches[i]['epoch']['Q'])}")
 
             self.patches[i]['epoch']['TQ'] = sum(self.patches[i]['epoch']['Q'])
-            self.patches[i]['epoch']['AATC'] = sum(self.patches[i]['epoch']['ATC'])/len(self.patches[i]['epoch']['ATC'])
+            self.patches[i]['epoch']['AATC'] = round(sum(self.patches[i]['epoch']['ATC'])/len(self.patches[i]['epoch']['ATC']),1)
             self.patches[i]['epoch']['AP']   = self.patches[i]['util'] * self.patches[i]['epoch']['price'] - self.patches[i]['epoch']['AATC']
             self.patches[i]['epoch']['price']  = self.linearDemand(self.patches[i]['epoch']['TQ'])
                 
