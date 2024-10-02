@@ -18,7 +18,7 @@ from loop_functions.utils import *
 
 from controllers.actusensors.groundsensor import Resource
 
-random.seed(lp['generic']['seed'])
+# random.seed(lp['generic']['seed'])
 
 log_folder = lp['environ']['EXPERIMENTFOLDER'] + '/logs/0/'
 os.makedirs(os.path.dirname(log_folder), exist_ok=True)   
@@ -199,8 +199,8 @@ def init():
         robot.variables.set_attribute("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
         
     if lp['patches']['known']:
-        for i, robot in enumerate(random.sample(allrobots, total_count)):
-            robot.variables.set_attribute("newResource", allresources[i]._json)
+        for i, robot in enumerate(random.sample(allrobots, int(os.environ['STARTWORKERS']))):
+            robot.variables.set_attribute("newResource", allresources[0]._json)
     
     # Init logfiles for loop function
     file   = 'simulation.csv'
