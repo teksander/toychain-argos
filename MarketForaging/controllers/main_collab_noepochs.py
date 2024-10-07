@@ -162,9 +162,12 @@ class Trip(object):
         self.MC     = []
         self.TC     = 0
         self.ATC    = 0
-        self.price = patch['util']*patch['epoch']['price']
+        self.util   = patch['util']
+        self.qlty   = patch['qlty']
+        self.price = self.util*patch['epoch']['price']
+        
         self.finished = False
-        # self.price = 1000
+
         tripList.append(self)
 
     @property
@@ -209,7 +212,7 @@ class Trip(object):
     def __str__(self):
         C  = str(self.C).replace(' ','')
         MC = str(self.MC).replace(' ','')
-        return "%i %i %i %s %s %i %i %i" % (self.tStart, self.FC, self.Q, C, MC, self.TC, self.ATC, self.profit)        
+        return "%i %i %i %s %s %i %i %i %i %s" % (self.tStart, self.FC, self.Q, C, MC, self.TC, self.ATC, self.profit, self.util, self.qlty)        
 
 ####################################################################################################################################################################################
 #### INIT STEP #####################################################################################################################################################################
@@ -688,7 +691,7 @@ def destroy():
 
         # Log the result of the each trip performed by robot
         name   = 'firm.csv'
-        header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
+        header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT', 'UTIL', 'QLTY']
         logs['firm'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
         for trip in tripList:
