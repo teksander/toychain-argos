@@ -195,13 +195,8 @@ def init():
     for robot in allrobots:
 
         robot.id = int(robot.variables.get_attribute("id"))
-        # robot.ip = identifiersExtract(robot.id)
         robot.variables.set_attribute("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
         
-    if lp['patches']['known']:
-        for i, robot in enumerate(random.sample(allrobots, int(os.environ['STARTWORKERS']))):
-            robot.variables.set_attribute("newResource", allresources[0]._json)
-    
     # Init logfiles for loop function
     file   = 'simulation.csv'
     header = ['TPS', 'RAM', 'CPU']
@@ -211,9 +206,9 @@ def init():
     header = list(resource_counter) + ['TOTAL', 'VALUE']
     logs['loop'] = Logger(log_folder+file, header, ID = '0')
 
-    file   = 'patches.csv'
-    header = ['JSON']
-    logs['patches'] = Logger(log_folder+file, header, rate = 2, ID = '0')
+    # file   = 'patches.csv'
+    # header = ['JSON']
+    # logs['patches'] = Logger(log_folder+file, header, rate = 2, ID = '0')
 
     file   = 'collection.csv'
     header = ['ROBOT_ID', 'QLTY', 'QTTY','TOTAL']
@@ -305,7 +300,7 @@ def pre_step():
         if clocks['regen'][res].query() and res.quantity < lp['patches']['qtty_max']:
             res.quantity += 1
 
-        logs['patches'].log([res._json.replace(" ", "")])
+        # logs['patches'].log([res._json.replace(" ", "")])
 
 def post_step():
     global startFlag, clocks, accums, resource_counter

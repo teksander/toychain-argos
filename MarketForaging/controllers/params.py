@@ -18,8 +18,8 @@ params['erbDist']    = 175
 params['max_Q']       = 10
 
 params['firm'] = dict()
-params['firm']['entry_K']   = 0
-params['firm']['entry_Kp']   = 0
+params['firm']['entry_K']   = 8
+params['firm']['entry_Kp']   = 8
 params['firm']['entry_Ki']   = 0
 params['firm']['entry_w']    = 10
 params['firm']['entry_f']    = 5 # how often (in blocks) the robots decide to enter/exit

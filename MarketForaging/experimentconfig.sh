@@ -37,7 +37,7 @@ export BLOCKPERIOD=2
 
 # [SC]
 export MAXWORKERS=15
-export STARTWORKERS=3
+export STARTWORKERS=1
 export LIMITASSIGN=2
 
 export DEMAND_A=0

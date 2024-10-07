@@ -31,8 +31,11 @@ cp $SCFILE $TOYCHFOLDER/scs/deploy.py
 echo "+-----------------------------------------------------------+"
 echo "Cleaning logs folder..."
 
-eval $(echo "rm -rf logs/{$(($NUMROBOTS+1))..100}")
+rm -rf logs/*
 
+for i in $(seq 0 $NUMROBOTS); do
+    mkdir -p logs/$i
+done
 
 # for opt in "$@"
 # do

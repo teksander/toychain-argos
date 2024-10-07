@@ -7,6 +7,13 @@ from toychain.src.State import StateMixin
 import logging
 logger = logging.getLogger('sc')
 
+mainFolder = os.environ['MAINFOLDER']
+experimentFolder = os.environ['EXPERIMENTFOLDER']
+sys.path += [mainFolder, experimentFolder]
+
+from controllers.actusensors.groundsensor import Resource
+from loop_functions.params import params as lp
+
 class Contract(StateMixin):
 
     def __init__(self, state_variables = None):
@@ -24,6 +31,9 @@ class Contract(StateMixin):
             self.patches     = []
             self.robots      = {}
 
+            with open(lp['files']['patches'], 'r') as f:
+                for line in f:
+                    self.updatePatch(*Resource(line)._calldata)
 
     def robot(self):
         return {'task': -1}
@@ -66,8 +76,11 @@ class Contract(StateMixin):
         if self.msg.sender not in self.robots:
             self.robots[self.msg.sender] = self.robot()
 
-        if task != -1:
-            self.joinPatch(task)
+        for patch in self.patches:
+            if patch['totw'] < int(lp['environ']['STARTWORKERS']):
+                self.joinPatch(patch['id'])
+                print(f"Assigned robot {self.msg.sender} to {patch['qlty']}")
+                break
 
     def joinPatch(self, i):
 

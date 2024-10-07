@@ -482,7 +482,7 @@ def controlstep():
 
         robot.log.info('--//-- Starting Experiment --//--')
 
-        for module in submodules:
+        for module in [erb, w3]:
             try:
                 module.start()
             except:
@@ -494,28 +494,10 @@ def controlstep():
 
         for clock in clocks.values():
             clock.reset()
-
-        w3.start_tcp()
-        w3.start_mining()
-
-        # Startup transactions
-        res = robot.variables.get_attribute("newResource")
-        if res:
-            txdata = {'function': 'updatePatch', 'inputs': Resource(res)._calldata}
-            tx = Transaction(sender = me.id, receiver = 2, value = 0, data = txdata, nonce = last, timestamp = w3.custom_timer.time())
-            w3.send_transaction(tx)
-
-            txdata = {'function': 'register', 'inputs': [0]}
-            tx = Transaction(sender = me.id, data = txdata)
-            w3.send_transaction(tx)
-
-            rb.addResource(Resource(res)._json, update_best = True)
-            fsm.setState(States.HOMING, message = None)
-            
-        else:
-            txdata = {'function': 'register', 'inputs': []}
-            tx = Transaction(sender = me.id, data = txdata)
-            w3.send_transaction(tx)
+        
+        # Register to Smart Contract transaction
+        tx = Transaction(sender = me.id, data = {'function': 'register', 'inputs': []})
+        w3.send_transaction(tx)
 
     else:
 
@@ -539,30 +521,24 @@ def controlstep():
         if clocks['peering'].query():
             peering()
 
-        # if logs['resources'].query():
-        #     logs['resources'].log([len(rb)])
-
-        # if logs['fsm'].query():
-        #     logs['fsm'].log([round(fsm.accumTime[state], 3) if state in fsm.accumTime else 0 for state in stateList ])
-
-        # Update blockchain state on the robot C++ object
-        last_block = w3.get_block('last')
-        robot.variables.set_attribute("block", str(last_block.height))
-        robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
-        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
-
-        # Only needed for visualization purposes
-        robot.variables.set_attribute("block_hash", str(last_block.hash))
-        robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
-        robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
-        erb.setData(last_block.total_difficulty, indices=[1,2])
+        # Share blockchain sync details through erb
+        erb.setData(w3.get_block('last').total_difficulty, indices=[1,2])
         erb.setData(w3.mempool_hash(astype='int'), indices=3)
-        w3_peers = {peer for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
-        robot.variables.set_attribute("w3_peers", str([(peer.range, peer.bearing) for peer in w3_peers])) 
 
         # Get perfect position if at nest
         if robot.variables.get_attribute("at") == "cache":
             odo.setPosition()
+
+        # Update blockchain state on the robot C++ object (Visualization only, can comment out)
+        last_block = w3.get_block('last')
+        robot.variables.set_attribute("block", str(last_block.height))
+        robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
+        robot.variables.set_attribute("block_hash", str(last_block.hash))
+        robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
+        robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
+        w3_peers = {peer for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
+        robot.variables.set_attribute("w3_peers", str([(peer.range, peer.bearing) for peer in w3_peers])) 
 
         #########################################################################################################
         #### State::IDLE
@@ -578,10 +554,10 @@ def controlstep():
         elif fsm.query(States.PLAN):
 
             if clocks['decision'].query():
-
+                
                 my_patch = w3.sc.getMyPatch(me.id)
-                if my_patch:
 
+                if my_patch:
                     if decision(my_patch, my_patch['totw']) == 'exit':
                         fsm.setState(States.PLAN, message = "Leaving patch")
                         tx = Transaction(sender = me.id, receiver = 2, value = 0, data = {'function': 'leavePatch', 'inputs': []}, nonce = last, timestamp = w3.custom_timer.time())
@@ -593,8 +569,10 @@ def controlstep():
 
                 else:
                     all_patches = w3.sc.getPatches()
-                    for patch in all_patches:
-                        if decision(patch, len(w3.sc.robots)-sum([p['totw'] for p in w3.sc.patches])) == 'entry':
+                    idle_robots = len(w3.sc.robots)-sum([p['totw'] for p in all_patches])
+
+                    for patch in random.sample(all_patches, len(all_patches)):  
+                        if decision(patch, idle_robots) == 'entry':
                             tx = Transaction(me.id, data = {'function': 'joinPatch', 'inputs': [patch['id']]}, nonce = last, timestamp = w3.custom_timer.time())
                             w3.send_transaction(tx)
                             rb.addResource(patch['json'], update_best = True)
