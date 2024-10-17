@@ -164,7 +164,7 @@ class Trip(object):
         self.ATC    = 0
         self.util   = patch['util']
         self.qlty   = patch['qlty']
-        self.price = self.util*patch['epoch']['price']
+        self.price = self.util * patch['epoch']['price']
         
         self.finished = False
 
@@ -178,25 +178,26 @@ class Trip(object):
     def update(self, Q):
         finished = False
 
+        # Update price
+        self.price = self.util * w3.sc.getMyPatch(me.id)['epoch']['price']
+
         if self.FC == 0:
             self.FC = self.timedelta
 
         C  = self.timedelta-self.FC
         
-        if len(self.C) > 0 and C-self.C[-1] > 1.25*self.price:
+        if len(self.C) > 0 and C-self.C[-1] > 1.05*self.price:
             robot.log.info("Finished before collection %s" % (C-self.C[-1]))
             finished = True
 
         if int(Q) > self.Q:
             finished = False
-            # patch  = tcp_sc.request(data = 'getPatch')
-            # self.price = patch['util']*patch['epoch']['price']
             self.Q = int(Q)
             self.C.append(C)
 
             if len(self.C) > 1:
                 MC = self.C[-1]-self.C[-2]
-                robot.log.info("Collected %i // MC: %i" % (self.Q, MC))
+                robot.log.info(f"Q: {self.Q} // MC: {MC} // P: {round(self.price,0)}")
                 self.MC.append(MC)
 
                 if MC > self.price:
@@ -303,23 +304,6 @@ def init():
     # /* Initialize logmodules*/
     #######################################################################
     # Experiment data logs (recorded to file)
-    # name   = 'resource.csv'
-    # header = ['COUNT']
-    # logs['resources'] = Logger(log_folder+name, header, rate = 5, ID = me.id)
-
-    # name   = 'firm.csv'
-    # header = ['TSTART', 'FC', 'Q', 'C', 'MC', 'TC', 'ATC', 'PROFIT']
-    # logs['firm'] = Logger(log_folder+name, header, ID = me.id)
-
-    # name   = 'epoch.csv'
-    # header = ['RESOURCE_ID', 'NUMBER', 'BSTART', 'Q', 'TC', 'ATC', 'price']
-    # # header =w3.sc.functions.Epoch_key().call()
-    # logs['epoch'] = Logger(log_folder+name, header, ID = me.id)
-
-    # name   = 'robot_sc.csv'
-    # header = ["isRegistered", "efficiency", "income", "balance", "task"]
-    # # header = w3.sc.functions.Robot_key().call()
-    # logs['robot_sc'] = Logger(log_folder+name, header, ID = me.id)
 
     # name   = 'fsm.csv'
     # header = stateList
@@ -443,20 +427,22 @@ def controlstep():
     def decision(patch, N):
         
         epoch = patch['epoch']
+        Kp    = cp['firm']['entry_Kp']
+        Ki    = cp['firm']['entry_Ki']
 
         def AP(window = 1):
-
             if not epoch['ATC']:
                 return 0
-            
+
             window = min(window, len(epoch['ATC']))
-            return patch['util'] * epoch['price'] - sum(epoch['ATC'][-window:]) / window
+
+            return patch['util']*epoch['price'] - sum(epoch['ATC'][-window:]) / window
             
         # Proportional decision probability
-        Pt = cp['firm']['entry_Kp']/10 * 1/(patch['util']*epoch['price']) * AP(1)
+        Pt = Kp/10 * 1/(patch['util']*patch['epoch']['price']) * AP(1)
 
         # Integrated decision probability
-        Pt += cp['firm']['entry_Ki']/10 * 1/(patch['util']*epoch['price']) * AP(cp['firm']['entry_w'])
+        Pt += Ki/10 * 1/(patch['util']) * AP(cp['firm']['entry_w'])
 
         if Pt > 1: 
             P = 1
@@ -650,7 +636,7 @@ def controlstep():
 
                 # Transact to drop resource
                 if not txs['drop']:
-                    robot.log.info(f"Dropping. FC:{tripList[-1].FC} TC:{tripList[-1].TC} ATC:{tripList[-1].ATC}")
+                    robot.log.info(f"Dropping. Q:{tripList[-1].Q} FC:{tripList[-1].FC} TC:{tripList[-1].TC} ATC:{tripList[-1].ATC}")
                     txdata = {'function': 'dropResource', 'inputs': rb.best._calldata+(tripList[-1].Q, tripList[-1].TC)}
                     txs['drop'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
                     w3.send_transaction(txs['drop'])
@@ -705,7 +691,7 @@ def destroy():
 
         for block in w3.chain:
             logs['block'].log(
-                [w3.custom_timer.time()-block.timestamp, 
+                [block.reception-block.timestamp, 
                 block.timestamp, 
                 block.height, 
                 block.hash, 
@@ -755,107 +741,3 @@ def destroy():
 #########################################################################################################################
 #########################################################################################################################
 #########################################################################################################################
-
-
-def getEnodes():
-    return [peer['enode'] for peer in w3.geth.admin.peers()]
-
-def getEnodeById(__id, gethEnodes = None):
-    if not gethEnodes:
-        gethEnodes = getEnodes() 
-
-    for enode in gethEnodes:
-        if readEnode(enode, output = 'id') == __id:
-            return enode
-
-def getIds(__enodes = None):
-    if __enodes:
-        return [enode.split('@',2)[1].split(':',2)[0].split('.')[-1] for enode in __enodes]
-    else:
-        return [enode.split('@',2)[1].split(':',2)[0].split('.')[-1] for enode in getEnodes()]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #########################################################################################################
-        #### Scout.EXPLORE
-        #########################################################################################################
-
-        # elif fsm.query(Scout.EXPLORE):
-
-        #     if clocks['block'].query():
-
-        #         # Confirm I am still scout
-        #         fsm.setState(States.PLAN, message = None)
-
-        #     else:
-
-        #         # Perform a random-walk 
-        #         rw.step()
-
-        #         # Look for resources
-        #         sensing()
-
-        #         # Transition state
-        #         if clocks['explore'].query(reset = False):
-
-        #             # Sucess exploration: Sell
-        #             if rb.buffer:
-        #                 fsm.setState(Scout.SELL, message = "Found %s" % len(rb))
-
-        #             # Unsucess exploration: Buy
-        #             else:
-        #                 clocks['buy'].reset()
-        #                 fsm.setState(States.ASSIGN, message = "Found %s" % len(rb))
-
-
-        #########################################################################################################
-        #### Scout.SELL
-        #########################################################################################################
-
-        # elif fsm.query(Scout.SELL):
-
-        #     # Navigate to market
-        #     if fsm.query(Recruit.HOMING, previous = True):
-        #         homing(to_drop = True)
-        #     else:
-        #         homing()
-
-        #     # Sell resource information  
-        #     if rb.buffer:
-        #         resource = rb.buffer.pop(-1)
-        #         print(resource._calldata)
-        #         sellHash = w3.sc.functions.updatePatch(*resource._calldata).transact()
-        #         txs['sell'] = Transaction(sellHash)
-        #         robot.log.info('Selling: %s', resource._desc)
-
-        #     # Transition state  
-        #     else:
-        #         if txs['sell'].query(3):
-        #             txs['sell'] = Transaction(None)
-        #             fsm.setState(States.ASSIGN, message = "Sell success")
-
-        #         elif txs['sell'].fail == True:    
-        #             txs['sell'] = Transaction(None)
-        #             fsm.setState(States.ASSIGN, message = "Sell failed")
-
-        #         elif txs['sell'].hash == None:
-        #             fsm.setState(States.ASSIGN, message = "None to sell")

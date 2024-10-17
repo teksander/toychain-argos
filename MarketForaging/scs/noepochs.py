@@ -30,6 +30,7 @@ class Contract(StateMixin):
             # Init your own state variables
             self.patches     = []
             self.robots      = {}
+            self.market      = {qlty:[0,0] for qlty in lp['patches']['qualities']}
 
             with open(lp['files']['patches'], 'r') as f:
                 for line in f:
@@ -50,7 +51,7 @@ class Contract(StateMixin):
             # 'maxw': int(os.environ['MAXWORKERS']),
             'totw': 0,      
             # 'last_assign': -1,
-            'epoch': self.epoch(0,0,[],[],[],self.linearDemand(0)),
+            'epoch': self.epoch(0,0,[],[],[],1),
             # 'robots': [],
             # 'allepochs': []
         }
@@ -120,15 +121,21 @@ class Contract(StateMixin):
 
         if i < 9999:
 
+            print(f"The old resource price:{self.patches[i]['epoch']['price']*util}")
+            print(f"{lp['economy']['consum_rate'][qlty]*(self.block.height - self.market[qlty][1])} resources were consumed")
+            print(f"{Q} resources were dropped")
+
             # Update patch information
             self.updatePatch(x, y, qtty, util, qlty, json)
+           
+            # Update the market quantity
+            self.market[qlty][0] += Q
+            self.market[qlty][0] -= lp['economy']['consum_rate'][qlty]*(self.block.height - self.market[qlty][1])
+            self.market[qlty][1]  = self.block.height
+            self.market[qlty][0]  = max(0, self.market[qlty][0])
 
-            # Pay the robot
-            self.balances[self.msg.sender] += Q*util*self.patches[i]['epoch']['price']
-
-            # Fuel purchase
-            self.balances[self.msg.sender] -= TC
-            
+            print(f"market qtty: {self.market[qlty][0]}")
+            # Update the patch epoch
             self.patches[i]['epoch']['Q'].append(Q)
             self.patches[i]['epoch']['TC'].append(TC)
             self.patches[i]['epoch']['ATC'].append(round(TC/Q,1))
@@ -136,11 +143,19 @@ class Contract(StateMixin):
 
             logger.info(f"Drop #{len(self.patches[i]['epoch']['Q'])}")
 
-            self.patches[i]['epoch']['TQ'] = sum(self.patches[i]['epoch']['Q'])
-            self.patches[i]['epoch']['AATC'] = round(sum(self.patches[i]['epoch']['ATC'])/len(self.patches[i]['epoch']['ATC']),1)
-            self.patches[i]['epoch']['AP']   = self.patches[i]['util'] * self.patches[i]['epoch']['price'] - self.patches[i]['epoch']['AATC']
-            self.patches[i]['epoch']['price']  = self.linearDemand(self.patches[i]['epoch']['TQ'])
+            self.patches[i]['epoch']['TQ']     = sum(self.patches[i]['epoch']['Q'])
+            self.patches[i]['epoch']['AATC']   = round(sum(self.patches[i]['epoch']['ATC'])/len(self.patches[i]['epoch']['ATC']),1)
+            self.patches[i]['epoch']['price']  = self.linearDemand(self.market[qlty][0], self.patches[i])
+            self.patches[i]['epoch']['AP']     = self.patches[i]['util']*self.patches[i]['epoch']['price'] - self.patches[i]['epoch']['AATC']
                 
+            # Pay the robot
+            self.balances[self.msg.sender] += Q*util*self.patches[i]['epoch']['price']
+
+            # Fuel purchase
+            self.balances[self.msg.sender] -= TC
+
+            print(f"The new resource price:{self.patches[i]['epoch']['price']*util}")
+
         else:
             print(f'Patch {x},{y} not found')
 
@@ -168,11 +183,11 @@ class Contract(StateMixin):
 
         return patch['epoch'], patch 
     
-    def linearDemand(self, Q):
-        P = 0
-        demandA = 0 
-        demandB = 1
-        
-        if demandB > demandA * Q:
-            P = demandB - demandA * Q
-        return P
+    def linearDemand(self, Q, patch = None):
+
+        demandA = lp['economy']['DEMAND_A']
+        demandB = lp['economy']['DEMAND_B']
+
+        Price = demandB - demandA*(Q/patch['util'])
+
+        return max(Price, 0)

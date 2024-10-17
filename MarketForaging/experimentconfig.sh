@@ -41,7 +41,7 @@ export STARTWORKERS=1
 export LIMITASSIGN=2
 
 export DEMAND_A=0
-export DEMAND_B=1000
+export DEMAND_B=1
 export REGENRATE=20
 export FUELCOST=100
 export QUOTA_temp=$(echo " scale=4 ; (75/$REGENRATE*$BLOCKPERIOD+0.05)/1" | bc)

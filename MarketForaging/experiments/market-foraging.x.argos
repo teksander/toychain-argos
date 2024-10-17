@@ -67,7 +67,7 @@
   <!-- *********************** -->
   <!-- * Arena configuration * -->
   <!-- *********************** -->
-  <arena size="${ARENADIM}, ${ARENADIM}, 1.5" center="0,0,0">
+  <arena size="${ARENADIM}, ${ARENADIM}, 1" center="0,0,0">
 
  <floor id="f" source="image" path="${EXPERIMENTFOLDER}/experiments/floors/market.png" />
 

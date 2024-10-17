@@ -170,7 +170,7 @@ class Navigate(object):
         self.Kp = 50                                    # Angular velocity proportional gain
         self.window_size = 10                           # Avoid vector filtering           
         self.thresh = math.radians(70)                  # Wait before moving
-        self.thresh_front_collision = math.radians(15)  # Aggressive avoidance
+        self.thresh_front_collision = math.radians(25)  # Aggressive avoidance
 
         # Obstacle avoidance parameters
         self.thresh_ir    = 0

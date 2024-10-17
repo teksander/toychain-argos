@@ -54,7 +54,7 @@ class GroundSensor(object):
     def getNew(self):
         """ This method returns the instant ground value """
 
-        return self.groundValues;
+        return self.groundValues
         
     def start(self):
         pass
