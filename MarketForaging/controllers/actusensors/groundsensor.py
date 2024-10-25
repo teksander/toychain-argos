@@ -80,6 +80,7 @@ class Resource(object):
         # Fix the number of decimals
         self.x = round(self.x, 2)
         self.y = round(self.y, 2)
+        self.r = self.radius
 
         # Introduce the measurement error
         r = self.radius * math.sqrt(random.random()) * 0
@@ -118,7 +119,7 @@ class ResourceVirtualSensor(object):
     The __sensing() method will be started and it will run in the background
     until the application exits.
     """
-    def __init__(self, robot, freq = 100):
+    def __init__(self, robot, freq = None):
         """ Constructor
         :type freq: str
         :param freq: frequency of measurements in Hz (tip: 20Hz)
@@ -131,7 +132,7 @@ class ResourceVirtualSensor(object):
     def step(self):
 
         # Read frequency @ self.freq (Hz).
-        if time.time() - self.last > (1/self.freq):
+        if not self.freq or time.time() - self.last > (1/self.freq):
             self.last = time.time()
 
             resource = self.robot.variables.get_attribute("newResource")

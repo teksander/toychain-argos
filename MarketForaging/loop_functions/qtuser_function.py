@@ -44,8 +44,22 @@ def draw_patches():
 
 	for res in allresources:
 		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius, res.quality, False)
-		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max']), res.quality, True)
+		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max'][res.quality]), res.quality, True)
 		environment.qt_draw.circle([res.x, res.y, 0.0005],[], res.radius, 'gray90', True)
+	
+	resources = eval(robot.variables.get_attribute("verified"))
+	for res in resources:
+		x = res[0]
+		y = res[1]
+		qlty = res[2]
+		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][qlty]+0.03, 'black', True)
+
+	resources = eval(robot.variables.get_attribute("pending"))
+	for res in resources:
+		x = res[0]
+		y = res[1]
+		qlty = res[2]
+		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][qlty]+0.03, 'gray90', True)
 
 def draw_resources_on_robots():
 	quantity = int(robot.variables.get_attribute("quantity"))
@@ -90,14 +104,18 @@ def draw_in_robot():
 	# Draw resources carried by robots
 	draw_resources_on_robots()
 
-	# Draw block/state/mempool hash as colored circles
-	color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
-	color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
-	color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
-	tx_count = int(robot.variables.get_attribute("mempl_size"))
-	environment.qt_draw.circle([0,0,0.010], [], 0.100, color_state, True)
-	environment.qt_draw.circle([0,0,0.011], [], 0.075, color_block, True)
-	environment.qt_draw.circle([0,0,0.012+0.002*tx_count], [], 0.050, color_mempl, True)
+	# Draw representation of robot state machine
+	robot_state = robot.variables.get_attribute("fsm")+"12"
+	environment.qt_draw.circle([0, 0, 0.010],[], 0.1, hash_to_rgb(robot_state), True)
+
+	# # Draw block/state/mempool hash as colored circles
+	# color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
+	# color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
+	# color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
+	# tx_count = int(robot.variables.get_attribute("mempl_size"))
+	# environment.qt_draw.circle([0,0,0.010], [], 0.100, color_state, True)
+	# environment.qt_draw.circle([0,0,0.011], [], 0.075, color_block, True)
+	# environment.qt_draw.circle([0,0,0.012+0.002*tx_count], [], 0.050, color_mempl, True)
 
 	# Draw rays to w3 peers
 	w3_peers = eval(robot.variables.get_attribute("w3_peers"))

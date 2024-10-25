@@ -33,7 +33,7 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_collab_noepochs.py"
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py"
       timeRate="1" />
     </python_controller>
 
@@ -87,7 +87,7 @@
     <distribute>
       <position method="uniform" min="-.894,-.894,0" max=".894,.894,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="20" max_trials="15"> 
+      <entity quantity="15" max_trials="15"> 
         <e-puck id="bc" >
           <controller config="collab" />
         </e-puck>
@@ -97,7 +97,7 @@
     <distribute>
       <position method="uniform" min="-.894,-.894,0" max=".894,.894,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="0" max_trials="15" base_num="20"> 
+      <entity quantity="0" max_trials="15" base_num="15"> 
         <e-puck id="gr" >
           <controller config="greedy" />
         </e-puck>
@@ -137,9 +137,10 @@
       
     <camera>
       <placements>
-        <placement index="0" position="0,0,8" up="1,0,0" look_at="0,0,0" lens_focal_length="50" />
-        <placement index="1" position="0,0,1.5" up="1,0,0" look_at="0,0,0" lens_focal_length="20" />
-        <placement index="2" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
+        <placement index="0" position="0,0,1.5" look_at="0,0,0" up="1,0,0" lens_focal_length="7.056" />
+        <placement index="1" position="0,0,8" up="1,0,0" look_at="0,0,0" lens_focal_length="50" />
+        <placement index="2" position="0,0,1.5" up="1,0,0" look_at="0,0,0" lens_focal_length="20" />
+        <placement index="3" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
       </placements>
     </camera>
     </qt-opengl>

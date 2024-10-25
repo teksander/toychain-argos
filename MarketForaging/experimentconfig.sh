@@ -16,8 +16,9 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 
 # [ARGOS]
-export NUM1=20
-export CON1="${EXPERIMENTFOLDER}/controllers/main_collab_noepochs.py"
+export NUM1=15
+export CON1="${EXPERIMENTFOLDER}/controllers/main_policy.py"
+export CON1="${EXPERIMENTFOLDER}/controllers/main_individ.py"
 
 export NUM2=0
 export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
@@ -25,12 +26,13 @@ export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
 export RABRANGE="2"
 export WHEELNOISE="0"
 export TPS=10
-export DENSITY="1"
+export DENSITY="0.75"
 
 export NUMROBOTS=$(echo $NUM1+$NUM2 | bc)
 export ARENADIM=$(echo "scale=3 ; sqrt($NUMROBOTS/$DENSITY)" | bc)
 export ARENADIMH=$(echo "scale=3 ; $ARENADIM/2" | bc)
 export STARTDIM=$(echo "scale=3 ; $ARENADIM/5" | bc)
+export FOCALLGT=$(echo "scale=3 ; -2 * $ARENADIM + 16" | bc)
 
 # [GETH]
 export BLOCKPERIOD=2

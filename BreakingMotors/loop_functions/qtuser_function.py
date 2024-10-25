@@ -45,7 +45,7 @@ def draw_patches():
 
 	for res in allresources:
 		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius, res.quality, False)
-		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max']), res.quality, True)
+		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max'][res.quality]), res.quality, True)
 		environment.qt_draw.circle([res.x, res.y, 0.0005],[], res.radius, 'gray90', True)
 
 def draw_resources_on_robots():

@@ -75,6 +75,8 @@ class FiniteStateMachine(object):
         self.accumTime = dict()
         self.startTime = time.time()
         self.pass_along = None
+
+        self.robot.variables.set_attribute("fsm", "0")
         
     def setStorage(self,storage = None):
         self.storage = storage
@@ -117,7 +119,7 @@ class FiniteStateMachine(object):
             self.robot.log.info("%s -> %s%s", self.currState, state, ' | '+message)
         
         self.robot.variables.set_attribute("dropResource", "")
-        self.robot.variables.set_attribute("state", str(state))
+        self.robot.variables.set_attribute("fsm", str(state.value))
 
 class TxTimer:
     def __init__(self, rate, name = None):
