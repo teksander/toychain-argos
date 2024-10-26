@@ -74,7 +74,7 @@ params['patches']['radii']  = {k: round(math.sqrt(params['patches']['qtty_min'][
 # Parameters for resource economy
 params['patches']['utility']     = {'red': 1, 'green':  1, 'blue': 200, 'yellow': 300}
 params['patches']['forage_rate'] = {'red': 1, 'green':  1, 'blue': 1, 'yellow': 1}
-params['patches']['regen_rate']  = {'red': 50, 'green': 50, 'blue': 50, 'yellow': 50}
+params['patches']['regen_rate']  = {'red': 30, 'green': 30, 'blue': 30, 'yellow': 30}
 
 params['patches']['dec_returns'] = dict()
 params['patches']['dec_returns']['func']   = 'linear'                       # constant, linear or logarithmic decreasing returns

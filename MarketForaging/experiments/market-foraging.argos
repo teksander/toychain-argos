@@ -33,7 +33,7 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py"
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_policy.py"
       timeRate="1" />
     </python_controller>
 
@@ -53,7 +53,7 @@
       <!-- No required configuration -->
       
       <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_greedy.py"
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py"
       timeRate="1" />
     </python_controller>
   </controllers>

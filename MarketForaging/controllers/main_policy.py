@@ -540,7 +540,7 @@ def controlstep():
         #########################################################################################################
         if fsm.query(States.IDLE):
 
-            action = random.choices(('explore', 'verify', 'join'),weights=(10, 30, 50))[0]
+            action = random.choices(('explore', 'verify', 'join'),weights=(10, 30*eval(lp['environ']['ORACLE']), 50))[0]
 
             if forage_decision():
                 action = 'forage'

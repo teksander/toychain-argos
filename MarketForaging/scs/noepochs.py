@@ -54,7 +54,7 @@ class Contract(StateMixin):
             'id': str(self.n),
             'votes': set(),
             'votes_remove': set(),
-            'status': 'pending',
+            'status': 'pending' if eval(lp['environ']['ORACLE']) else 'verified',
             'team': set(),
             'totw': 0,      
             'maxw': math.ceil(qtty/10),

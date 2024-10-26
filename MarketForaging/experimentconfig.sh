@@ -18,10 +18,11 @@ export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py"
 # [ARGOS]
 export NUM1=15
 export CON1="${EXPERIMENTFOLDER}/controllers/main_policy.py"
-export CON1="${EXPERIMENTFOLDER}/controllers/main_individ.py"
 
 export NUM2=0
-export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
+export CON2="${EXPERIMENTFOLDER}/controllers/main_individ.py"
+
+export ORACLE="False"
 
 export RABRANGE="2"
 export WHEELNOISE="0"
