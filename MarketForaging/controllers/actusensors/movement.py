@@ -4,6 +4,9 @@ import time
 import logging
 from controllers.utils import Vector2D
 
+from controllers.params import params as cp
+from loop_functions.params import params as lp
+
 tps = 10
 
 class GPS(object):
@@ -82,6 +85,24 @@ class Odometry(object):
     def getPosition(self):
         return self.pos
 
+    @property
+    def ex(self):
+        ex = self.pos[0] - self.robot.position.get_position()[0]
+        return round(ex, 2)
+
+    @property
+    def ey(self):
+        ey = self.pos[1] - self.robot.position.get_position()[1]
+        return round(ey, 2)
+
+    @property
+    def x(self):
+        return round(self.pos[0], 2)
+
+    @property
+    def y(self):
+        return round(self.pos[1], 2)
+
 class OdoCompass(object):
     """ Odometry-based positioning sensor with compass
     """
@@ -97,6 +118,10 @@ class OdoCompass(object):
         # Fixed Parameters
         self.L = 0.053          # Distance between wheels
         self.R = 0.0205         # Wheel radius
+        
+        # Error model
+        self.bias = bias
+        self.variance = variance
 
         # Internal variables 
         self.pos = Vector2D(self.robot.position.get_position())  
@@ -112,8 +137,8 @@ class OdoCompass(object):
         dt = self.robot.position.get_orientation() - self.ori
 
         # Add noise to readings
-        dl += random.gauss(0, 0.01)
-        dr += random.gauss(0, 0.01)
+        dl += random.gauss(0, self.variance)
+        dr += random.gauss(0, self.variance)
         dt += random.gauss(0, math.radians(0))
 
         # Calculate delta in position
@@ -121,20 +146,41 @@ class OdoCompass(object):
         dy = (dl+dr)/2 * math.sin(self.ori + dt/2) 
 
         # Update position and orientation estimates
-        self.ori += dt 
         self.pos += Vector2D(dx,dy)
+        self.ori += dt 
 
     def setOrientation(self):
         self.ori = self.robot.position.get_orientation()
 
-    def setPosition(self):
-        self.pos = Vector2D(self.robot.position.get_position())
+    def setPosition(self, position = None):
+        if position:
+            self.pos = position
+        else:
+            self.pos = Vector2D(self.robot.position.get_position())
 
     def getOrientation(self):
         return self.ori
 
     def getPosition(self):
         return self.pos
+
+    @property
+    def ex(self):
+        ex = self.pos[0] - self.robot.position.get_position()[0]
+        return round(ex, 2)
+
+    @property
+    def ey(self):
+        ey = self.pos[1] - self.robot.position.get_position()[1]
+        return round(ey, 2)
+
+    @property
+    def x(self):
+        return round(self.pos[0], 2)
+
+    @property
+    def y(self):
+        return round(self.pos[1], 2)
 
 class Navigate(object):
     """ Set up a Navigation loop on a background thread
@@ -171,6 +217,7 @@ class Navigate(object):
         self.window_size = 10                           # Avoid vector filtering           
         self.thresh = math.radians(70)                  # Wait before moving
         self.thresh_front_collision = math.radians(25)  # Aggressive avoidance
+        self.sensor = 'odometry'
 
         # Obstacle avoidance parameters
         self.thresh_ir    = 0
@@ -181,9 +228,15 @@ class Navigate(object):
 
     def update_state(self, target = [0,0]):
 
-        self.position = Vector2D(self.robot.position.get_position()[0:2])
-        self.orientation = self.robot.position.get_orientation()
-        self.target = Vector2D(target)
+        if self.sensor[0:3] == 'odo':
+            self.position    = self.robot.odo.getPosition()
+            self.orientation = self.robot.odo.getOrientation()
+            self.target      = Vector2D(target)
+        else:
+            self.position    = Vector2D(self.robot.position.get_position()[0:2])
+            self.orientation = self.robot.position.get_orientation()
+            self.target      = Vector2D(target)
+
 
     def navigate(self, target = [0,0]):
 
@@ -223,13 +276,15 @@ class Navigate(object):
         # Store the distance to arrive at target
         self.__distance_to_target = abs(vec_target)
 
-    def navigate_with_obstacle_avoidance(self, target = [0,0]):
+    def navigate_with_obstacle_avoidance(self, target = [0,0], local = False):
 
         # Update the current position, orientation and target of the robot
         self.update_state(target = target)
         
         # Calculate the local frame vector to the desired target
-        vec_target = (self.target-self.position).rotate(-self.orientation)
+        vec_target = self.target
+        if not local:
+            vec_target = (self.target-self.position).rotate(-self.orientation)
 
         # Calculate the local frame vector to the avoid objects
         acc = Vector2D()
@@ -306,10 +361,10 @@ class Navigate(object):
             self.__accumulator_stuck += 1
             
             if self.__accumulator_stuck > 1*tps:
-                right = -self.MAX_SPEED
-                left = -0.5*self.MAX_SPEED
+                right = 0.5*self.MAX_SPEED
+                left = -0.25*self.MAX_SPEED
             
-            if self.__accumulator_stuck > 2*tps:
+            if self.__accumulator_stuck > 1.5*tps:
                 self.__accumulator_stuck = 0
 
         # Set wheel speeds
@@ -317,6 +372,8 @@ class Navigate(object):
 
         # Store the distance to arrive at target
         self.__distance_to_target = abs(vec_target)
+
+        return self.get_distance_to(target)
 
     def update_rays(self, T, A, D):
         # Change to global coordinates for the plotting
@@ -441,7 +498,7 @@ class RandomWalk(object):
 
         # Random walk parameters
         self.remaining_walk_time = 3
-        self.my_lambda = 10              # Parameter for straight movement
+        self.my_lambda = 15              # Parameter for straight movement
         self.turn = 8
         self.possible_directions = ["straight", "cw", "ccw"]
         self.actual_direction = "straight"
@@ -462,14 +519,22 @@ class RandomWalk(object):
         self.__old_vec = 0
         self.__accumulator_I = 0
         
+        # Targeted random walk parameters
+        self.target_radius = 0.5       # Radius around the target for localized search
+        self.target_radius = 1.5       # Radius of the search area
+        self.outside_turn_bias = 0.8   # Higher probability of turning outside the radius
+        self.previous_distance = float('inf')  # Track previous distance to the target
 
-    def step(self):
+    def step(self, local = False, target = [0,0], radius = 1.5):
         """ This method runs in the background until program is closed """
 
         if self.__walk:
 
             # Levy random-Walk
-            left, right = self.random()
+            if local:
+                left, right =self.targeted_random(target, radius)
+            else:
+                left, right = self.random()
 
             # Avoid Obstacles
             left, right = self.avoid_argos3_example(left, right)
@@ -477,11 +542,41 @@ class RandomWalk(object):
             # Saturate wheel actuators
             left, right = self.saturate(left, right)
 
-            # Set wheel speeds
+            # Set wheel speeds  
             self.robot.epuck_wheels.set_speed(right, left)
 
             # No rays for plotting
             self.robot.variables.set_attribute("rays", "")
+
+    def targeted_random(self, target = [0,0], radius = 1.5):
+        """ Perform a localized random walk when within a target radius. """
+        
+        # Compute distance to target
+        distance_to_target = abs(self.robot.odo.getPosition()-Vector2D(target))
+
+        # Determine if the robot is inside or outside the radius
+        if distance_to_target < radius:
+            return self.random()
+        
+        if self.actual_direction == "straight":
+
+            # Check if the distance to the target is reducing
+            if distance_to_target < self.previous_distance:
+                self.previous_distance = distance_to_target  
+            else:
+                # If the distance isn't reducing, encourage turning even more
+                self.actual_direction = random.choice(["cw", "ccw"])
+                self.remaining_walk_time = random.randint(0, self.turn)
+
+        # Return wheel speeds based on the chosen direction
+        speed = self.MAX_SPEED / 2
+        if self.actual_direction == "straight":
+            return speed, speed
+        elif self.actual_direction == "cw":
+            return speed, -speed
+        elif self.actual_direction == "ccw":
+            return -speed, speed
+
 
     def random(self): 
 
@@ -498,91 +593,12 @@ class RandomWalk(object):
 
         # Return wheel speeds
         speed = self.MAX_SPEED/2
-
         if (self.actual_direction == "straight"):
             return speed, speed
-
         elif (self.actual_direction == "cw"):
             return speed, -speed
-
         elif (self.actual_direction == "ccw"):
             return -speed, speed
-
-
-    def avoid_vec_lua(self, left, right):
-    # Obstacle avoidance; translated from Lua
-    # Source: swarm intelligence examples
-
-        accumul = Vector2D(0,0)
-
-        readings = self.robot.epuck_proximity.get_readings()
-        
-        for reading in readings:
-
-            # We calculate the x and y components given length and angle
-            vec = Vector2D(reading.value, reading.angle.value(), polar = True)
-
-            # We sum the vectors into a variable called accumul
-            accumul += vec
-
-        # We get length and angle of the final sum vector
-        length, angle = accumul.to_polar()
-
-        if length > 0.01:
-            # print(length)
-            # If the angle is greater than 0 the resulting obstacle is on the left. 
-            # Otherwise it is on the right
-            # We turn with a speed that depends on the angle. 
-            # The closer the obstacle to the x axis of the robot, the quicker the turn
-            speed = max(0.5, math.cos(angle)) * self.MAX_SPEED
-
-            if angle > 0:
-                right = speed
-                left = 0
-            else:
-                right = 0
-                left = speed
-
-        return left, right
-
-
-    def avoid(self, left = 0, right = 0, move = False):
-
-        obstacle = avoid_left = avoid_right = 0
-
-        # Obstacle avoidance
-        readings = self.robot.epuck_proximity.get_readings()
-        self.ir = [reading.value for reading in readings]
-                
-        # Find Wheel Speed for Obstacle Avoidance
-        for i, reading in enumerate(self.ir):
-            if reading > self.thresh_ir:
-                obstacle = True
-                avoid_left  += self.weights[i] * reading
-                avoid_right -= self.weights[i] * reading
-
-        if obstacle:
-            left  = self.MAX_SPEED/2 + avoid_left
-            right = self.MAX_SPEED/2 + avoid_right
-
-        if move:
-            self.robot.epuck_wheels.set_speed(right, left)
-
-        return left, right
-
-    # def avoid(self, left, right):
-
-    #     # Obstacle avoidance
-    #     readings = self.robot.epuck_proximity.get_readings()
-    #     self.ir = [reading.value for reading in readings]
-                
-    #     # Find Wheel Speed for Obstacle Avoidance
-    #     for i, reading in enumerate(self.ir):
-    #         if (reading > self.thresh_ir):
-    #             left  = self.MAX_SPEED/2 + self.weights_left[i] * reading
-    #             right = self.MAX_SPEED/2 + self.weights_right[i] * reading
-
-    #     return left, right
 
     def avoid_argos3_example(self, left, right):
         # Obstacle avoidance; translated from C++
@@ -617,7 +633,51 @@ class RandomWalk(object):
                 left, right = self.MAX_SPEED/2, -self.MAX_SPEED/2       
 
         return left, right
+      
+
+    def saturate(self, left, right, style = 1):
+        # Saturate Speeds greater than MAX_SPEED
+        if style == 1:
+
+            if left > self.MAX_SPEED:
+                left = self.MAX_SPEED
+            elif left < -self.MAX_SPEED:
+                left = -self.MAX_SPEED
+
+            if right > self.MAX_SPEED:
+                right = self.MAX_SPEED
+            elif right < -self.MAX_SPEED:
+                right = -self.MAX_SPEED
+
+        else:
+
+            if abs(left) > self.MAX_SPEED or abs(right) > self.MAX_SPEED:
+                left = left/max(abs(left),abs(right))*self.MAX_SPEED
+                right = right/max(abs(left),abs(right))*self.MAX_SPEED
+
+        return left, right
+
+    def setWalk(self, state):
+        """ This method is called set the random-walk to on without disabling I2C"""
+        self.__walk = state
+
+    def setLEDs(self, state):
+        """ This method is called set the outer LEDs to an 8-bit state """
+        if self.__LEDState != state:
+            self.__isLEDset = False
+            self.__LEDState = state
         
+    def getIr(self):
+        """ This method returns the IR readings """
+        return self.ir
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
+  
     def avoid_vec_lua_erb(self, left, right):
         # Obstacle avoidance; translated from LUA
         # Source: swarm intelligence ULB course
@@ -661,50 +721,80 @@ class RandomWalk(object):
         return left, right
 
 
-    def saturate(self, left, right, style = 1):
-        # Saturate Speeds greater than MAX_SPEED
+    def avoid_vec_lua(self, left, right):
+    # Obstacle avoidance; translated from Lua
+    # Source: swarm intelligence examples
 
-        if style == 1:
+        accumul = Vector2D(0,0)
 
-            if left > self.MAX_SPEED:
-                left = self.MAX_SPEED
-            elif left < -self.MAX_SPEED:
-                left = -self.MAX_SPEED
+        readings = self.robot.epuck_proximity.get_readings()
+        
+        for reading in readings:
 
-            if right > self.MAX_SPEED:
-                right = self.MAX_SPEED
-            elif right < -self.MAX_SPEED:
-                right = -self.MAX_SPEED
+            # We calculate the x and y components given length and angle
+            vec = Vector2D(reading.value, reading.angle.value(), polar = True)
 
-        else:
+            # We sum the vectors into a variable called accumul
+            accumul += vec
 
-            if abs(left) > self.MAX_SPEED or abs(right) > self.MAX_SPEED:
-                left = left/max(abs(left),abs(right))*self.MAX_SPEED
-                right = right/max(abs(left),abs(right))*self.MAX_SPEED
+        # We get length and angle of the final sum vector
+        length, angle = accumul.to_polar()
+
+        if length > 0.01:
+            # print(length)
+            # If the angle is greater than 0 the resulting obstacle is on the left. 
+            # Otherwise it is on the right
+            # We turn with a speed that depends on the angle. 
+            # The closer the obstacle to the x axis of the robot, the quicker the turn
+            speed = max(0.5, math.cos(angle)) * self.MAX_SPEED
+
+            if angle > 0:
+                right = speed
+                left = 0
+            else:
+                right = 0
+                left = speed
 
         return left, right
 
-    def setWalk(self, state):
-        """ This method is called set the random-walk to on without disabling I2C"""
-        self.__walk = state
 
-    def setLEDs(self, state):
-        """ This method is called set the outer LEDs to an 8-bit state """
-        if self.__LEDState != state:
-            self.__isLEDset = False
-            self.__LEDState = state
-        
-    def getIr(self):
-        """ This method returns the IR readings """
-        return self.ir
+    def avoid1(self, left = 0, right = 0, move = False):
 
-    def start(self):
-        pass
+        obstacle = avoid_left = avoid_right = 0
 
-    def stop(self):
-        pass
+        # Obstacle avoidance
+        readings = self.robot.epuck_proximity.get_readings()
+        self.ir = [reading.value for reading in readings]
+                
+        # Find Wheel Speed for Obstacle Avoidance
+        for i, reading in enumerate(self.ir):
+            if reading > self.thresh_ir:
+                obstacle = True
+                avoid_left  += self.weights[i] * reading
+                avoid_right -= self.weights[i] * reading
 
+        if obstacle:
+            left  = self.MAX_SPEED/2 + avoid_left
+            right = self.MAX_SPEED/2 + avoid_right
 
+        if move:
+            self.robot.epuck_wheels.set_speed(right, left)
+
+        return left, right
+
+    def avoid2(self, left, right):
+
+        # Obstacle avoidance
+        readings = self.robot.epuck_proximity.get_readings()
+        self.ir = [reading.value for reading in readings]
+                
+        # Find Wheel Speed for Obstacle Avoidance
+        for i, reading in enumerate(self.ir):
+            if (reading > self.thresh_ir):
+                left  = self.MAX_SPEED/2 + self.weights_left[i] * reading
+                right = self.MAX_SPEED/2 + self.weights_right[i] * reading
+
+        return left, right
 
 
 	

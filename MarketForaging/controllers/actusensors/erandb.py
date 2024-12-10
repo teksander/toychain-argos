@@ -12,7 +12,7 @@ class Peer(object):
         """
 
         # range-and-bearing information
-        self.id       = _data[0]
+        self.id       = str(_data[0])
         self.data     = _data
         self.range    = _range
         self.bearing  = _bearing
@@ -65,10 +65,10 @@ class ERANDB(object):
     The __listen() method will be started and it will run in the background
     until the application exits.
     """
-    def __init__(self, robot, dist = 200, tFreq = 0):
+    def __init__(self, robot, mDist = 9999, tFreq = 0):
         """ Constructor
         :type dist: int
-        :param dist: E-randb communication range (0=1meter; 255=0m)
+        :param dist: E-randb communication range (in meters)
         :type freq: int
         :param freq: E-randb transmit frequency (tip: 0 = no transmission; 4 = 4 per second)
         """
@@ -80,6 +80,7 @@ class ERANDB(object):
         self.tData = [0,0,0,0]
         self.setData(self.id)
         self.peers = []
+        self.mDist = mDist
 
     def step(self):
         """ This method runs in the background until program is closed """
@@ -92,20 +93,28 @@ class ERANDB(object):
                 self.newIds.add(newId)
 
         self.peers = []
-        for reading in self.robot.epuck_range_and_bearing.get_readings():
+        for reading in self.getRaw():
             self.peers.append(Peer(reading[0], reading[1], reading[2]))
 
+    def getRaw(self):
+
+        raw = self.robot.epuck_range_and_bearing.get_readings()
+
+        # Do some filters
+        raw_within_range = [r for r in self.robot.epuck_range_and_bearing.get_readings() if r[1] < self.mDist]
+
+        return raw_within_range
 
     def getData(self):
-        readings = self.robot.epuck_range_and_bearing.get_readings()
+        readings = self.getRaw()
         return [reading[0] for reading in readings]
 
     def getRanges(self):
-        readings = self.robot.epuck_range_and_bearing.get_readings()
+        readings = self.getRaw()
         return [reading[1] for reading in readings]
 
     def getBearings(self):
-        readings = self.robot.epuck_range_and_bearing.get_readings()
+        readings = self.getRaw()
         return [reading[2] for reading in readings]
 
     def setData(self, data, indices=0):

@@ -5,6 +5,7 @@
 import random, math
 import sys, os
 import hashlib
+from json import loads
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -38,7 +39,7 @@ def draw_market():
 	environment.qt_draw.circle([cache.x, cache.y, 0.001],[], cache.radius, 'custom2', False)
 
 def draw_patches():
-
+	
 	with open(lp['files']['patches'], 'r') as f:
 		allresources = [Resource(line) for line in f]
 
@@ -49,24 +50,37 @@ def draw_patches():
 	
 	resources = eval(robot.variables.get_attribute("verified"))
 	for res in resources:
-		x = res[0]
-		y = res[1]
-		qlty = res[2]
-		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][qlty]+0.03, 'black', True)
+		x    = res[0]
+		y    = res[1]
+		json = res[2]
+		environment.qt_draw.circle([x, y, 0.0003],[], lp['patches']['radii'][json['quality']]+0.03, json['quality'], False)
+		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][json['quality']]+0.03, 'black', True)
 
 	resources = eval(robot.variables.get_attribute("pending"))
 	for res in resources:
-		x = res[0]
-		y = res[1]
-		qlty = res[2]
-		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][qlty]+0.03, 'gray90', True)
+		x    = res[0]
+		y    = res[1]
+		json = res[2]
+		environment.qt_draw.circle([x, y, 0.0003],[], lp['patches']['radii'][json['quality']]+0.03, json['quality'], False)
+		environment.qt_draw.circle([x, y, 0.00025],[], lp['patches']['radii'][json['quality']]+0.03, 'gray90', True)
+
+	resources = eval(robot.variables.get_attribute("allpts"))
+	for res in resources:
+		all_x = res[0]
+		all_y = res[1]
+		json  = res[2]
+		for x, y in zip(all_x, all_y):
+			environment.qt_draw.circle([x, y, 0.0005],[], 0.02, 'black', True)
+			environment.qt_draw.circle([x, y, 0.0005],[], 0.025, json['quality'], True)
+
+
 
 def draw_resources_on_robots():
 	quantity = int(robot.variables.get_attribute("quantity"))
 	quality  = robot.variables.get_attribute("hasResource")
 
 	# Draw carried quantity
-	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp['max_Q']), res_height, quality)
+	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp[robot_type]['max_Q']), res_height, quality)
 	for i in range(quantity):
 		environment.qt_draw.cylinder([0, 0, (i*1.3)*res_height + 0.075],[], 0.5 * rob_diam, res_height, quality)
 
@@ -106,22 +120,37 @@ def draw_in_robot():
 
 	# Draw representation of robot state machine
 	robot_state = robot.variables.get_attribute("fsm")+"12"
-	environment.qt_draw.circle([0, 0, 0.010],[], 0.1, hash_to_rgb(robot_state), True)
+	# environment.qt_draw.circle([0, 0, 0.005],[], 0.1, hash_to_rgb(robot_state), True)
 
-	# # Draw block/state/mempool hash as colored circles
-	# color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
-	# color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
-	# color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
-	# tx_count = int(robot.variables.get_attribute("mempl_size"))
+	# Draw representation of robot heterogeneous type
+	robot_type  = robot.variables.get_attribute("robot_type")
+	# environment.qt_draw.circle([0, 0, 0.005],[], 0.08, hash_to_rgb(robot_type), True)
+
+	# Draw block/state/mempool hash as colored circles
+	color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
+	color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))
+	color_mempl = hash_to_rgb(robot.variables.get_attribute("mempl_hash"))
+	tx_count = int(robot.variables.get_attribute("mempl_size"))
 	# environment.qt_draw.circle([0,0,0.010], [], 0.100, color_state, True)
-	# environment.qt_draw.circle([0,0,0.011], [], 0.075, color_block, True)
-	# environment.qt_draw.circle([0,0,0.012+0.002*tx_count], [], 0.050, color_mempl, True)
+	environment.qt_draw.circle([0,0,0.011], [], 0.09, color_block, True)
+	# environment.qt_draw.cylinder([1.5*rob_diam, 0, 0.005], [], 0.5*rob_diam, tx_count*res_height, color_mempl)
+	environment.qt_draw.box([3*rob_diam, 0, 0.005], [], [rob_diam, rob_diam, tx_count*0.5*rob_diam+0.0002], color_mempl)
+
 
 	# Draw rays to w3 peers
 	w3_peers = eval(robot.variables.get_attribute("w3_peers"))
 	for peer_rb in w3_peers:
 		environment.qt_draw.ray([0, 0 , 0.01],[peer_rb[0]*math.cos(peer_rb[1]), peer_rb[0]*math.sin(peer_rb[1]) , 0.01], 'red', 0.15)
 
+	# Draw the odometry position error
+	odo_pos = Vector2D(eval(robot.variables.get_attribute("odo_position")))
+	gps_pos = Vector2D(robot.position.get_position()[0:2])
+	environment.qt_draw.circle(list(gps_pos-odo_pos)+[0.01],[], 0.025, hash_to_rgb(robot_type), True)
+	environment.qt_draw.ray([0,0,0.01], list(gps_pos-odo_pos)+[0.01], hash_to_rgb(robot_type), 0.5)
+
+	# Draw ERB range
+	erb_range  = robot.variables.get_attribute("erb_range")
+	environment.qt_draw.circle([0, 0, 0.00005],[], float(erb_range), 'gray90', False)
 
 # Draw block number with boxes
 	# block_number = int(robot.variables.get_attribute("block"))
@@ -136,14 +165,6 @@ def draw_in_robot():
 def destroy():
 	print('Closing the QT window')
 
-
-	# # Draw the odometry position error
-	# if lp['generic']['show_pos']:
-	# 	with open(lp['files']['position'], 'r') as f:
-	# 		for line in f:
-	# 			gps_pos, odo_pos = eval(line)
-	# 			gps_pos, odo_pos = list(gps_pos)+[0.01], list(odo_pos)+[0.01]
-	# 			environment.qt_draw.ray(gps_pos, odo_pos, 'red', 0.15)
 
 	# # Draw rays
 	# if lp['generic']['show_rays']:

@@ -285,18 +285,22 @@ def pre_step():
 
         # Forage resources
         for robot in random.sample(other['foragers'][res], len(other['foragers'][res])):
-            carried = robot.variables.get_attribute("quantity")
-            clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
-
-            if clocks['forage'][robot].query():
-                robot.variables.set_attribute("hasResource", res.quality)
-                robot.variables.set_attribute("quantity", str(int(robot.variables.get_attribute("quantity"))+1))
-                robot.variables.set_attribute("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
-                res.quantity -= 1
 
             if not robot.variables.get_attribute("foraging"):
                 other['foragers'][res].remove(robot)
                 clocks['forage'][robot] = None
+                
+            else:
+                carried = robot.variables.get_attribute("quantity")
+                clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
+
+                if clocks['forage'][robot].query():
+                    robot.variables.set_attribute("hasResource", res.quality)
+                    robot.variables.set_attribute("quantity", str(int(robot.variables.get_attribute("quantity"))+1))
+                    robot.variables.set_attribute("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
+                    res.quantity -= 1
+
+
 
         # Regenerate resources
         if clocks['regen'][res].query() and res.quantity < lp['patches']['qtty_max'][res.quality]:
@@ -319,6 +323,10 @@ def post_step():
 
         for res in depleted:
             depleted_counter[res.quality] += 1
+            
+            for robot in other['foragers'][res]:
+                robot.variables.set_attribute("depleted", "True")
+            
 
     # Record the resources to be drawn to a file
     with open(lp['files']['patches'], 'w', buffering=1) as f:

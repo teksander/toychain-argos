@@ -6,6 +6,7 @@
 import random, math
 import time, sys, os
 import json
+from json import loads
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -16,7 +17,7 @@ from controllers.actusensors.groundsensor import ResourceVirtualSensor, Resource
 from controllers.actusensors.erandb       import ERANDB
 from controllers.actusensors.rgbleds      import RGBLEDs
 from controllers.utils import *
-from controllers.utils import Timer
+from controllers.utils import Timer, setup_logging
 from controllers.utils import FiniteStateMachine
 
 from controllers.params import params as cp
@@ -50,12 +51,6 @@ logtofile = False
 # /* Experiment Global Variables */
 #######################################################################
 
-clocks['peering']  = Timer(30)
-# clocks['query']    = Timer(5)
-clocks['explore']  = Timer(0)
-clocks['block']    = Timer(BLOCK_PERIOD)
-clocks['decision'] = Timer(BLOCK_PERIOD*cp['firm']['entry_f'])
-
 # Store the position of the market and cache
 market   = Resource({"x":lp['market']['x'], "y":lp['market']['y'], "radius": lp['market']['r']})
 cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['cache']['r']})
@@ -72,166 +67,32 @@ class States(Enum):
     ASSIGN = 3
     FORAGE = 4
     DROP   = 5 
-    JOIN   = 6
+    ANTENA = 6
     LEAVE  = 7
     HOMING = 8
     TRANSACT = 9
     RANDOM   = 10
     EXPLORE  = 11
     VERIFY   = 12
-
-class ResourceBuffer(object):
-    """ Establish the resource buffer class 
-    """
-    def __init__(self, ageLimit = 2):
-        """ Constructor
-        :type id__: str
-        :param id__: id of the peer
-        """
-        # Add the known peer details
-        self.buffer = []
-        self.ageLimit = ageLimit
-        self.best = None
-
-    def getJSON(self, resource):
-        return resource._json
-
-    def getJSONs(self, idx = None):
-        return {self.getJSON(res) for res in self.buffer}
-
-    def addResource(self, new_res, update_best = False):
-        """ This method is called to add a new resource
-        """   
-        if isinstance(new_res, str):
-            new_res = Resource(new_res)
-
-        # Is in the buffer? NO -> Add to buffer
-        if (new_res.x, new_res.y) not in self.getLocations():
-            res = new_res
-            self.buffer.append(res)
-            robot.log.info("Added: %s; Total: %s " % (res._desc, len(self)))
-
-        # Is in the buffer? YES -> Update buffer
-        else:
-            res = self.getResourceByLocation((new_res.x, new_res.y))
-
-            # if new_res.quantity < res.quantity or new_res._timeStamp > res._timeStamp:
-            if new_res.quantity < res.quantity:
-                res.quantity = new_res.quantity
-                res._timeStamp = new_res._timeStamp
-                # robot.log.info("Updated resource: %s" % self.getJSON(res))
-
-        if update_best:
-            self.best = self.getResourceByLocation((new_res.x, new_res.y))
-
-        return res
-
-    def removeResource(self, resource):
-        """ This method is called to remove a peer Id
-            newPeer is the new peer object
-        """   
-        self.buffer.remove(resource)
-        robot.log.info("Removed resource: "+self.getJSON(resource))
-
-    def __len__(self):
-        return len(self.buffer)
-
-    def sortBy(self, by = 'value', inplace = True):
-
-        if inplace:
-            if by == 'timeStamp':
-                pass
-            elif by == 'value':
-                self.buffer.sort(key=lambda x: x.utility, reverse=True)
-        else:
-            return self.buffer.sort(key=lambda x: x.utility, reverse=True)
-
-    def getLocations(self):
-        return [(res.x, res.y) for res in self.buffer]
-
-    def getDistances(self, x, y):
-        return [math.sqrt((x-res.x)**2 + (y-res.y)**2) for res in self.buffer]
-
-    def getResourceByLocation(self, location):
-        return self.buffer[self.getLocations().index(location)]
-
-class Trip(object):
-
-    def __init__(self, patch):
-        self.tStart = w3.custom_timer.time()
-        self.FC     = 0
-        self.Q      = 0
-        self.C      = []
-        self.MC     = []
-        self.TC     = 0
-        self.ATC    = 0
-        self.util   = patch['util']
-        self.qlty   = patch['qlty']
-        self.price = self.util * patch['epoch']['price']
-        
-        self.finished = False
-
-        tripList.append(self)
-
-    @property
-    def timedelta(self):
-        timedelta = w3.custom_timer.time() - self.tStart
-        return round(timedelta, 2)
-
-    def update(self, Q):
-        finished = False
-
-        # Update price
-        self.price = self.util * w3.sc.getMyPatch(me.id)['epoch']['price']
-
-        if self.FC == 0:
-            self.FC = self.timedelta
-
-        C  = self.timedelta-self.FC
-        
-        if len(self.C) > 0 and C-self.C[-1] > 1.05*self.price:
-            robot.log.info("Finished before collection %s" % (C-self.C[-1]))
-            finished = True
-
-        if int(Q) > self.Q:
-            finished = False
-            self.Q = int(Q)
-            self.C.append(C)
-
-            if len(self.C) > 1:
-                MC = self.C[-1]-self.C[-2]
-                robot.log.info(f"Q: {self.Q} // MC: {MC} // P: {round(self.price,0)}")
-                self.MC.append(MC)
-
-                if MC > self.price:
-                    finished = True
-
-            self.TC  = self.timedelta
-            self.ATC = round(self.TC/self.Q)
-            self.profit  = round(self.Q*self.price-self.TC)
-
-        self.finished = finished
-        return finished
-
-    def __str__(self):
-        C  = str(self.C).replace(' ','')
-        MC = str(self.MC).replace(' ','')
-        return "%i %i %i %s %s %i %i %i %i %s" % (self.tStart, self.FC, self.Q, C, MC, self.TC, self.ATC, self.profit, self.util, self.qlty)        
+    EVADING  = 13
 
 ####################################################################################################################################################################################
 #### INIT STEP #####################################################################################################################################################################
 ####################################################################################################################################################################################
+global robot_type
 
 def init():
-    global clocks,counters, logs, submodules, me, rw, nav, odo, gps, rb, w3, fsm, rs, erb, rgb
+    global clocks,counters, logs, submodules, me, rw, nav, odo, gps, rb, w3, fsm, rs, erb, rgb, robot_type
     robotID, robotIP = str(int(robot.variables.get_id()[2:])+1), '127.0.0.1'
     robot.variables.set_attribute("id", str(robotID))
     robot.variables.set_attribute("circle_color", "gray50")
+    robot.variables.set_attribute("odo_position",repr(Vector2D()))
     robot.variables.set_attribute("scresources", "[]")
     robot.variables.set_attribute("foraging", "")
     robot.variables.set_attribute("dropResource", "")
     robot.variables.set_attribute("hasResource", "")
     robot.variables.set_attribute("resourceCount", "0")
+    robot.variables.set_attribute("depleted", "")
     robot.variables.set_attribute("state", "")
     robot.variables.set_attribute("forageTimer", "0")
     robot.variables.set_attribute("quantity", "0")
@@ -245,18 +106,32 @@ def init():
     robot.variables.set_attribute("w3_peers", "[]")
     robot.variables.set_attribute("verified", "[]")
     robot.variables.set_attribute("pending", "[]")
+    robot.variables.set_attribute("allpts", "[]")
 
+    if int(robotID) <= int(lp['environ']['NUMA']):
+        robot_type = 'A'
+    elif int(robotID) <= int(lp['environ']['NUMA']) + int(lp['environ']['NUMB']):
+        robot_type = 'B'
+    elif int(robotID) <= int(lp['environ']['NUMA']) + int(lp['environ']['NUMB']) + int(lp['environ']['NUMC']):
+        robot_type = 'C'
+    else:
+        robot_type = 'D'
+
+    robot.variables.set_attribute("robot_type", robot_type)
+
+    robot.variables.set_attribute("erb_range", str(cp[robot_type]['range']))
+    
     # /* Initialize Console Logging*/
     #######################################################################
     log_folder = experimentFolder + '/logs/' + robotID + '/'
 
     # Monitor logs (recorded to file)
-    name =  'monitor.log'
-    os.makedirs(os.path.dirname(log_folder+name), exist_ok=True) 
-    logging.basicConfig(filename=log_folder+name, filemode='w+', format='[{} %(levelname)s %(name)s] %(message)s'.format(robotID))
+    logger = setup_logging(log_to_file=logtofile, log_folder=log_folder, robotID=robotID)
     logging.getLogger('sc').setLevel(10)
     logging.getLogger('w3').setLevel(70)
     logging.getLogger('poa').setLevel(70)
+    logging.getLogger('fsm').setLevel(10)
+
     robot.log = logging.getLogger()
     robot.log.setLevel(10)
 
@@ -269,29 +144,25 @@ def init():
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
 
-    # /* Init an instance of the buffer for resources  */
-    robot.log.info('Initialising resource buffer...')
-    rb = ResourceBuffer()
-
-    # /* Init E-RANDB __listening process and transmit function
-    robot.log.info('Initialising RandB board...')
-    erb = ERANDB(robot, cp['erbDist'] , cp['erbtFreq'])
-
     #/* Init Resource-Sensors */
     robot.log.info('Initialising resource sensor...')
     rs = ResourceVirtualSensor(robot)
-    
-    # /* Init Random-Walk, __walking process */
-    robot.log.info('Initialising random-walk...')
-    rw = RandomWalk(robot, cp['scout_speed'])
 
-    # /* Init Navigation, __navigate process */
-    robot.log.info('Initialising navigation...')
-    nav = Navigate(robot, cp['recruit_speed'])
+    # /* Init E-RANDB __listening process and transmit function
+    robot.log.info('Initialising RandB board...')
+    erb = ERANDB(robot)
 
     # /* Init odometry sensor */
     robot.log.info('Initialising odometry...')
-    odo = OdoCompass(robot)
+    robot.odo = OdoCompass(robot, variance = cp[robot_type]['error'])
+
+    # /* Init Random-Walk, __walking process */
+    robot.log.info('Initialising random-walk...')
+    rw = RandomWalk(robot, cp[robot_type]['speed'])
+
+    # /* Init Navigation, __navigate process */
+    robot.log.info('Initialising navigation...')
+    nav = Navigate(robot, cp[robot_type]['speed'])
 
     # /* Init GPS sensor */
     robot.log.info('Initialising gps...')
@@ -301,10 +172,19 @@ def init():
     rgb = RGBLEDs(robot)
 
     # /* Init Finite-State-Machine */
-    fsm = FiniteStateMachine(robot, start = States.IDLE)
+    fsm = FiniteStateMachine(robot, start = States.PLAN)
 
     # List of submodules --> iterate .start() to start all
     submodules = [erb]
+
+    # /* Initialize logmodules*/
+    #######################################################################
+
+    clocks['peering']  = Timer(30)
+    clocks['homing']   = Timer(50)
+    clocks['explore']  = Timer(300)
+    clocks['verify']   = Timer(0)
+    clocks['block']    = Timer(BLOCK_PERIOD)
 
     # /* Initialize logmodules*/
     #######################################################################
@@ -338,6 +218,15 @@ def controlstep():
 
         # Get the current peers from erb
         erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
+        # erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers}
+
+        # w3_peers   = erb.peers
+        w3_peers = set()
+        for peer in erb.peers:
+            if peer.data[2] != w3.last_hash(astype='int') or peer.data[3] != w3.mempool_hash(astype='int'):
+                w3_peers.add(peer)
+
+        erb_enodes = {w3.gen_enode(peer.id) for peer in w3_peers}
 
         # Add peers on the toychain
         for enode in erb_enodes-set(w3.peers):
@@ -353,13 +242,39 @@ def controlstep():
             except Exception as e:
                 raise e
 
+        erb.setData(w3.last_hash(astype='int'), indices=2)
+        erb.setData(w3.mempool_hash(astype='int'), indices=3)
+        
         # Turn on LEDs according to geth peer count
         rgb.setLED(rgb.all, rgb.presets.get(len(w3.peers), 3*['red']))
+
+        # Draw on qtuser_function the peers
+        robot.variables.set_attribute("w3_peers", str([(peer.range, peer.bearing) for peer in w3_peers])) 
+
+    def evading(patch):
+
+        # Navigate orthogonaly to the patch-market
+        targets = [Vector2D(patch['json']['x'], patch['json']['y']).rotate(20, degrees=True),
+                   Vector2D(patch['json']['x'], patch['json']['y']).rotate(-20, degrees=True)]
+        target = min(targets, key=nav.get_distance_to)
+
+        arrived = False
+        
+        nav.sensor = 'gps'
+        if nav.navigate_with_obstacle_avoidance(target) < 0.05:
+            arrived = True
+
+        nav.sensor = 'odometry'
+
+        return arrived
+
 
     def homing():
 
         # Navigate to the market
         arrived = True
+
+        nav.sensor = 'gps'
 
         if nav.get_distance_to(market._pr) < 0.9*market.radius:           
             nav.avoid(move = True)
@@ -371,12 +286,16 @@ def controlstep():
             nav.navigate_with_obstacle_avoidance(market._pr)
             arrived = False
 
+        nav.sensor = 'odometry'
+
         return arrived
 
     def dropping(resource):
 
-        direction = (resource._pv-market._pv).rotate(-25, degrees = True).normalize()
+        direction = (Vector2D(resource['x'],resource['y'])-market._pv).rotate(-25, degrees = True).normalize()
         target = direction*(market.radius+cache.radius)/2+market._pv
+
+        nav.sensor = 'gps'
 
         # Navigate to drop location
         arrived = True
@@ -387,80 +306,20 @@ def controlstep():
             nav.navigate_with_obstacle_avoidance(target)
             arrived = False
 
-        return arrived
-
-    def grouping(resource):
-
-        direction = (resource._pv-market._pv).rotate(25, degrees = True).normalize()
-        target = direction*(market.radius+cache.radius)/2+market._pv
-
-        # Navigate to the group location
-        arrived = True
-        if nav.get_distance_to(target) < 0.2*market.radius:           
-            nav.avoid(move = True) 
-        else:
-            nav.navigate(target)
-            arrived = False
+        nav.sensor = 'odometry'
 
         return arrived
 
-    def sensing(global_pos = True):
+    def sensing(gps = False):
 
         # Sense environment for resources
         res = rs.getNew()
 
         if res:
-            if global_pos:
-                # Use resource with GPS coordinates
-                rb.addResource(res)
+            if gps:
+                return {'x':res.x, 'y':res.y, 'json':json.loads(res._json)}
+            return {'x':round(res.x + robot.odo.ex, 2), 'y':round(res.y + robot.odo.ey, 2), 'json':json.loads(res._json)}
 
-            else:
-                # Add odometry error to resource coordinates
-                error = odo.getPosition() - gps.getPosition()
-                res.x += error.x
-                res.y += error.y
-
-                # use resource with odo coordinates
-                rb.addResource(Resource(res._json))
-
-            return res
-
-    def decision(patch, N):
-        
-        epoch = patch['epoch']
-        Kp    = cp['firm']['entry_Kp']
-        Ki    = cp['firm']['entry_Ki']
-
-        def AP(window = 1):
-            if not epoch['ATC']:
-                return 0
-
-            window = min(window, len(epoch['ATC']))
-
-            return patch['util']*epoch['price'] - sum(epoch['ATC'][-window:]) / window
-            
-        # Proportional decision probability
-        Pt = Kp/10 * 1/(patch['util']*patch['epoch']['price']) * AP(1)
-
-        # Integrated decision probability
-        Pt += Ki/10 * 1/(patch['util']) * AP(cp['firm']['entry_w'])
-
-        if Pt > 1: 
-            P = 1
-        else:
-            P  = 1 - (1-Pt)**(1/N)
-        
-        robot.log.info(f"last AP @ {patch['qlty']}: {round(AP(1))}")
-        robot.log.info(f"last {cp['firm']['entry_w']} APs @ {patch['qlty']}: {round(AP(cp['firm']['entry_w']))}")
-        robot.log.info(f"Entry/exit: {round(100*P, 2)}% ({round(100*Pt, 1)}%)")
-
-        if random.random() < abs(P):
-            if P < 0:
-                return 'exit'
-            else:
-                return 'entry'
-        else:
-            return None
 
     if not startFlag:
         ##########################
@@ -495,7 +354,7 @@ def controlstep():
         #########################################################################################################
         
         # Perform submodule steps
-        for module in [erb, rs, w3]:
+        for module in [erb, rs, w3, robot.odo, fsm]:
             module.step()
 
         # Perform clock steps
@@ -503,96 +362,101 @@ def controlstep():
             clock.time.step()
 
         # Perform clocked tasks
-        if clocks['peering'].query():
-            peering()
+        peering()
 
-        # Share blockchain sync details through erb
-        erb.setData(w3.get_block('last').total_difficulty, indices=[1,2])
-        erb.setData(w3.mempool_hash(astype='int'), indices=3)
+        # Updated odometry position
+        robot.variables.set_attribute("odo_position",repr(robot.odo.getPosition()))
 
+        if robot.variables.get_attribute("at") == "cache":
+            robot.odo.setPosition()
 
         # Read patch info from blockchain
         patches    = w3.sc.getPatches()
-        my_patch   = w3.sc.getMyPatch(me.id)
         verified   = [p for p in patches if p['status'] == 'verified' and me.id not in p["votes_remove"]]
         unverified = [p for p in patches if p['status'] == 'pending']
+
         unverified_by_me = [p for p in unverified if me.id not in p['votes']]
+        explored_by_me   = [p for p in unverified if me.id == p['explorer']]
 
-        def forage_decision():
-            return my_patch and my_patch['status'] == 'verified' and my_patch['totw'] == my_patch['maxw']
-
-        # #(Visualization only, can comment out)
-        # last_block = w3.get_block('last')
+        #(Visualization only, can comment out)
+        last_block = w3.get_block('last')
         # robot.variables.set_attribute("block", str(last_block.height))
         # robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
         # robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
-        # robot.variables.set_attribute("block_hash", str(last_block.hash))
+        robot.variables.set_attribute("block_hash", str(last_block.hash))
         # robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
-        # robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
-        w3_peers = {peer for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
-        robot.variables.set_attribute("w3_peers", str([(peer.range, peer.bearing) for peer in w3_peers])) 
+        # robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))        
 
         # (Visualization only, can comment out)
-        robot.variables.set_attribute("verified", str([(p['x'], p['y'], p['qlty']) for p in patches if p['status'] == 'verified']))
-        robot.variables.set_attribute("pending",  str([(p['x'], p['y'], p['qlty']) for p in patches if p['status'] == 'pending']))
+        robot.variables.set_attribute("verified", str([(p['x'], p['y'], p['json']) for p in patches if p['status'] == 'verified']))
+        robot.variables.set_attribute("pending",  str([(p['x'], p['y'], p['json']) for p in patches if p['status'] == 'pending']))
+        robot.variables.set_attribute("allpts",  str([(p['all_x'], p['all_y'], p['json']) for p in patches if p['status'] == 'pending']))
+
         #########################################################################################################
-        #### State::IDLE
+        #### State::PLAN
         #########################################################################################################
-        if fsm.query(States.IDLE):
+        if fsm.query(States.PLAN):
 
-            action = random.choices(('explore', 'verify', 'join'),weights=(10, 30*eval(lp['environ']['ORACLE']), 50))[0]
-
-            if forage_decision():
-                action = 'forage'
-
-            if action == 'explore':
-
-                # State transition: EXPLORE
-                explore_duration = random.gauss(cp['explore_mu'], cp['explore_sg'])*10
-                clocks['explore'].set(explore_duration)
-                fsm.setState(States.EXPLORE, message = "Duration: %.2f" % explore_duration)
-
-            elif action == 'verify' and unverified_by_me:
-
-                # State transition: VERIFY
-                patch = random.choice(unverified_by_me)
-                fsm.setState(States.VERIFY, pass_along = patch)
-
-            elif action == 'join' and verified:
-
-                # State transition: JOIN
-                availiable = [p for p in verified if p['totw'] < p['maxw']]
-                if availiable:
-                    patch = random.choice(availiable)
-                    fsm.setState(States.JOIN, pass_along = patch)
-
-            elif action == 'forage':
-
-                # State transition: FORAGE
-                rb.addResource(my_patch['json'], update_best = True)
-                fsm.setState(States.FORAGE)
+            if fsm.elapsed < 100:
+                homing()
 
             else:
-                homing()
+                action = random.choices(('explore', 'verify', 'forage'), weights=(30, 30, 30))[0]
+
+                if action == 'explore':
+
+                    # State transition: EXPLORE
+                    duration = random.gauss(cp['explore_mu'], cp['explore_sg'])*10
+                    clocks['explore'].set(duration)
+                    fsm.setState(States.EXPLORE, message = "Duration: %.2f" % duration)
+
+                elif action == 'verify' and unverified_by_me:
+
+                    # State transition: VERIFY
+                    patch = random.choice(unverified_by_me)
+                    fsm.setState(States.VERIFY, pass_along = patch)
+
+                elif action == 'forage' and verified:
+
+                    # State transition: FORAGE
+                    patch = random.choice(verified)
+                    fsm.setState(States.FORAGE, pass_along = patch)
 
         #########################################################################################################
-        #### State::JOIN
+        #### State::EVADING
         #########################################################################################################
-        elif fsm.query(States.JOIN):
 
-            patch = fsm.pass_along
+        elif fsm.query(States.EVADING):
 
-            if not txs['join']:
-                txs['join'] = Transaction(me.id, data = {'function': 'joinPatch', 'inputs': [patch['id']]}, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['join'])
+            arrived = evading(fsm.pass_along)
 
-            if txs['join']:
-                homing()
+            if arrived:
+                fsm.setState(States.HOMING)
 
-                if w3.get_transaction_receipt(txs['join'].id):
-                    fsm.setState(States.IDLE, message = "Join transaction success")
-                    txs['join'] = None
-                    
+        #########################################################################################################
+        #### State::HOMING
+        #########################################################################################################
+
+        elif fsm.query(States.HOMING):
+
+            arrived = homing()
+
+            if arrived:
+                fsm.setState(States.PLAN)
+
+        # #########################################################################################################
+        # #### State::IDLE
+        # #########################################################################################################
+
+        # elif fsm.query(States.IDLE):
+
+        #     # Perform a random-walk 
+        #     homing()
+
+        #     if clocks['explore'].query():
+        #         fsm.setState(States.PLAN, message = "Finished idling")
+
+
         #########################################################################################################
         #### State::EXPLORE
         #########################################################################################################
@@ -603,22 +467,48 @@ def controlstep():
             rw.step()
 
             # Look for resources
-            res = sensing()
+            patch_gs = sensing()
 
             # Sucess exploration: transact
-            if res and not txs['update']:
-                print(f"{me.id} discovered {res.quality}")
-                txdata = {'function': 'updatePatch', 'inputs': res._calldata}
+            if patch_gs and not txs['update']:
+                txdata = {'function': 'propose', 'inputs': (patch_gs['x'], patch_gs['y'], patch_gs['json'])}
                 txs['update'] = Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, timestamp = w3.custom_timer.time())
                 w3.send_transaction(txs['update'])
             
-            if txs['update']:
-                homing()
+                robot.log.info(f"Discovered {patch_gs['json']['quality']}")
 
-            # Transition state
-            if forage_decision() or clocks['explore'].query():
-                fsm.setState(States.IDLE, message = "Finished exploring")
+                fsm.setState(States.EVADING, message = "Found patch", pass_along=patch_gs)
                 txs['update'] = None
+
+            elif clocks['explore'].query():
+                fsm.setState(States.HOMING, message = "Finished exploring")
+                txs['update'] = None
+
+
+        #########################################################################################################
+        #### State::ANTENA
+        #########################################################################################################
+
+        elif fsm.query(States.ANTENA):
+
+            patch_to_broadcast = fsm.pass_along
+
+            nav.sensor = 'gps'
+            distance = nav.navigate_with_obstacle_avoidance((patch_to_broadcast['json']['x'], patch_to_broadcast['json']['y']))
+
+            if distance < 0.2*patch_to_broadcast['json']['radius']:
+                nav.avoid(move=True)
+
+            _, patch = w3.sc.findByPos(patch_to_broadcast['json']['x'], patch_to_broadcast['json']['y'])
+
+            if patch and patch['explorers'][0] != me.id:
+                nav.sensor = 'odometry'
+                fsm.setState(States.EVADING, message = "Another broadcasting", pass_along = patch_to_broadcast)
+
+            elif patch and patch['status'] in ['verified', 'removed']:
+                nav.sensor = 'odometry'
+                fsm.setState(States.EVADING, message = "Finished broadcasting", pass_along = patch_to_broadcast)
+
 
         #########################################################################################################
         #### State::VERIFY
@@ -626,89 +516,128 @@ def controlstep():
 
         elif fsm.query(States.VERIFY):
             
-            # Navigate to verify
-            nav.navigate_with_obstacle_avoidance((fsm.pass_along['x'],fsm.pass_along['y']))
+            patch_to_verify = fsm.pass_along
+            arrived = False
+            found   = False
+            listen  = False
 
-            # Look for resources
-            res = sensing()
-
-            # Sucess exploration: transact
-            if res and not txs['update']:
-                print(f"{me.id} verified {res.quality}")
-                txdata = {'function': 'updatePatch', 'inputs': res._calldata}
-                txs['update'] = Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['update'])
+            # Navigate to resource
+            distance = nav.navigate_with_obstacle_avoidance((patch_to_verify['x'], patch_to_verify['y']))
             
-            if txs['update']:
-                homing()
+            # Sense for resources
+            patch_gs = sensing()
 
-                if w3.get_transaction_receipt(txs['update'].id):
-                    txs['update'] = None
-                    fsm.setState(States.IDLE, message = "Verify transaction success")
+            if patch_gs and patch_gs['json']['x'] == patch_to_verify['json']['x'] and patch_to_verify['json']['y'] == patch_to_verify['json']['y']:
+                found = True
+
+            # Navigate to verify
+            if distance < 0.9*patch_to_verify['json']['radius']:
+                arrived    = True   
+
+            # Arrived but not found: explore nearby
+            if arrived and not found:
+                rw.step(local=True, target=(patch_to_verify['x'],patch_to_verify['y']))
+
+            # # Listen for the explorer
+            # for peer in erb.peers:
+            #     if peer.id in patch_to_verify['explorers']:
+            #         explorer = peer
+            #         listen = True
+
+            # # Can hear broadcast from explorer: navigate towards
+            # if listen:
+            #     bearing  = explorer.bearing
+            #     distance = explorer.range
+            #     target = Vector2D(distance, bearing, polar=True)
+            #     nav.navigate_with_obstacle_avoidance(target, local = True)
+
+            # Found the patch: transact
+            if found:
+                
+                txdata = {'function': 'verify', 'inputs': (patch_gs['x'], patch_gs['y'], patch_gs['json'])}
+                txs['update'] =  Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, timestamp = w3.custom_timer.time())
+                w3.send_transaction(txs['update'])
+                
+                robot.log.info(f"Verified {patch_to_verify['json']['quality']}")
+
+                fsm.setState(States.EVADING, message = "Verify success", pass_along = patch_to_verify)
+            
+            elif fsm.elapsed > 800:
+                txdata = {'function': 'verify', 'inputs': (0, 0, patch_to_verify['json'], True)}
+                txs['update'] =  Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, timestamp = w3.custom_timer.time())
+                w3.send_transaction(txs['update'])
+
+                robot.log.info(f"Rejected {patch_to_verify['json']['quality']}")
+                fsm.setState(States.HOMING, message = "Verify failed")
 
         #########################################################################################################
         #### State::FORAGE
         #########################################################################################################
         elif fsm.query(States.FORAGE):
 
-            # Distance to resource
-            distance = nav.get_distance_to(rb.best._pr)
-
-            # Resource virtual sensor
-            res = sensing()
-
-            found = res and res._p == rb.best._p
-
+            patch_to_forage = fsm.pass_along
+            arrived  = False
+            found    = False
             finished = False
             depleted = False
 
-            if not found and distance < 0.8*rb.best.r:
+            # Navigate to resource
+            distance = nav.navigate_with_obstacle_avoidance((patch_to_forage['x'], patch_to_forage['y']))
+
+            # Sense for resources
+            patch_gs = sensing()
+
+            if distance < 0.8*patch_to_forage['json']['radius']:
+                arrived  = True  
+
+            if patch_gs and (patch_gs['json']['x'], patch_gs['json']['y']) == (patch_to_forage['json']['x'], patch_to_forage['json']['y']):
+                patch_to_forage = patch_gs
+                found = True
+
+            if int(robot.variables.get_attribute("quantity")) >= cp[robot_type]['max_Q'] or fsm.elapsed > 800:
                 finished = True
+
+            if robot.variables.get_attribute("depleted") == "True":
                 depleted = True
 
-            if found:
-                rb.best = res
+            # Arrived but not found: explore within radius
+            if arrived and not found:
+                rw.step(local=True, target=(patch_to_forage['x'],patch_to_forage['y']))
+            
+            elif finished:
 
-            if found and distance < 0.9*rb.best.radius:
-                robot.variables.set_attribute("foraging", "True")
-                nav.avoid(move = True)
-
-                # finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
-
-                if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
-                    finished = True
-
-            else:
-                nav.navigate_with_obstacle_avoidance(rb.best._pr)
-
-            if finished:
-                if depleted:
-                    robot.log.info("Resource is depleted. Updating")
-                    print(f"{me.id} found depleted. Updating")
-                    rb.best.quantity = 0 
-                    txdata = {'function': 'updatePatch', 'inputs': rb.best._calldata+(True,)}
+                if depleted or not found:
+                    robot.variables.set_attribute("depleted", "")
+                    robot.log.info(f"Resource is: depleted {depleted}/found {found}")
+                    patch_to_forage['json']['quantity'] = 0 
+                    txdata = {'function': 'verify', 'inputs': (0, 0, patch_to_forage['json'], True)}
                     tx = Transaction(sender = me.id, receiver = 0, value = 0, data = txdata, timestamp = w3.custom_timer.time())
                     w3.send_transaction(tx)
-                    # tx = Transaction(me.id, data = {'function': 'leavePatch', 'inputs': []}, timestamp = w3.custom_timer.time())
-                    # w3.send_transaction(tx)
 
                 robot.variables.set_attribute("foraging", "")
-                fsm.setState(States.DROP, message = f"Collected {robot.variables.get_attribute('quantity')} {rb.best.quality}")
+                fsm.setState(States.DROP, message = f"Collected {robot.variables.get_attribute('quantity')} {patch_to_forage['json']['quality']}", pass_along = patch_to_forage)
+
+            elif found:
+                robot.variables.set_attribute("foraging", "True")
+                nav.avoid(move = True)
+              
 
         #########################################################################################################
         #### State::DROP
         #########################################################################################################
         elif fsm.query(States.DROP):
+            
+            patch_to_drop = fsm.pass_along
 
             # Navigate home
-            arrived = dropping(rb.best)
+            arrived = dropping(patch_to_drop)
 
             if arrived:
 
                 # Transact to drop resource
                 if not txs['drop']:
                     robot.log.info(f"Dropping.")
-                    txdata = {'function': 'dropResource', 'inputs': []}
+                    txdata = {'function': 'forage', 'inputs': (patch_to_drop['x'], patch_to_drop['y'], patch_to_drop['json'])}
                     txs['drop'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
                     w3.send_transaction(txs['drop'])
    
@@ -720,7 +649,7 @@ def controlstep():
                         if not robot.variables.get_attribute("hasResource"):
                             txs['drop'] = None
                             robot.variables.set_attribute("dropResource", "")   
-                            fsm.setState(States.IDLE, message = "Dropped: %s" % rb.best._desc)                       
+                            fsm.setState(States.PLAN, message = "Dropped: %s" % patch_to_drop['json']['quality'])                       
 
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
@@ -785,7 +714,7 @@ def destroy():
         # Log the state of each block
         name   = 'sc.csv'
         # header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT', 'X','Y','QTTY', 'QLTY', 'ID', 'TOTW','number', 'start', 'Q', 'TC', 'ATC', 'price', 'robots', 'TQ', 'AATC', 'AP']
-        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT', 'X','Y','QTTY', 'QLTY', 'ID', 'TOTW']
+        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT', 'X','Y','QTTY', 'QLTY', 'ID']
         logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
         for block in w3.chain:
@@ -797,12 +726,12 @@ def destroy():
                     block.parent_hash, 
                     block.state.balances.get(me.id,0),
                     block.state.n,
-                    patch['x'],  # 'x' coordinate of the patch
-                    patch['y'],  # 'y' coordinate of the patch
-                    patch['qtty'],  # Patch quantity (qtty)
-                    patch['qlty'],  # Patch quality (qlty)
+                    patch['json']['x'],  # 'x' coordinate of the patch
+                    patch['json']['y'],  # 'y' coordinate of the patch
+                    patch['json']['quantity'],  # Patch quantity (qtty)
+                    patch['json']['quality'],  # Patch quality (qlty)
                     patch['id'],  # Patch ID
-                    patch['totw'],  # Total weight or work in the patch (totw)
+                    # patch['totw'],  # Total workers in the patch (totw)
                     # patch['epoch']['number'],  # Epoch number
                     # patch['epoch']['start'],   # Epoch start time
                     # str(patch['epoch']['Q']).replace(' ', ''),  # Epoch 'Q' value

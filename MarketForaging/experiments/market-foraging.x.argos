@@ -16,12 +16,12 @@
   <controllers>
 
    
-    <python_controller id="collab" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
+    <python_controller id="con_A" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
         <epuck_wheels implementation="default" noise_std_dev="0"/>
-        <epuck_range_and_bearing implementation="medium" range="${RABRANGE}"/>
+        <epuck_range_and_bearing implementation="medium" range="${RABRANGE_A}"/>
       </actuators>
       <sensors>
         <positioning implementation="default" />
@@ -30,32 +30,61 @@
         <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
         <differential_steering implementation="default"/>
       </sensors>
-      <!-- No required configuration -->
-      
-      <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="${CON1}"
-      timeRate="1" />
+      <params script="${CON1}" timeRate="1" />
     </python_controller>
 
-    <python_controller id="greedy" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
+    <python_controller id="con_B" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
         <epuck_wheels implementation="default" />
-        <epuck_range_and_bearing implementation="medium" range="${RABRANGE}"/>
+        <epuck_range_and_bearing implementation="medium" range="${RABRANGE_B}"/>
       </actuators>
       <sensors>
         <positioning implementation="default" />
         <epuck_proximity implementation="default" show_rays="false" />
         <epuck_ground implementation="rot_z_only" />
         <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
       </sensors>
-      <!-- No required configuration -->
-      
-      <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="${CON2}"
-      timeRate="1" />
+
+      <params script="${CON1}" timeRate="1" />
     </python_controller>
+
+    <python_controller id="con_C" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
+      <!-- Normal actuator/sensor configuration follows -->
+      <actuators>
+        <epuck_rgb_leds implementation="default" medium="leds" />
+        <epuck_wheels implementation="default" />
+        <epuck_range_and_bearing implementation="medium" range="${RABRANGE_C}"/>
+      </actuators>
+      <sensors>
+        <positioning implementation="default" />
+        <epuck_proximity implementation="default" show_rays="false" />
+        <epuck_ground implementation="rot_z_only" />
+        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
+      </sensors>
+      <params script="${CON1}" timeRate="1" />
+    </python_controller>
+
+    <python_controller id="con_D" library="${ARGOSFOLDER}/build/libpy_controller_interface.so">
+      <!-- Normal actuator/sensor configuration follows -->
+      <actuators>
+        <epuck_rgb_leds implementation="default" medium="leds" />
+        <epuck_wheels implementation="default" />
+        <epuck_range_and_bearing implementation="medium" range="${RABRANGE_D}"/>
+      </actuators>
+      <sensors>
+        <positioning implementation="default" />
+        <epuck_proximity implementation="default" show_rays="false" />
+        <epuck_ground implementation="rot_z_only" />
+        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
+      </sensors>
+      <params script="${CON1}" timeRate="1" />
+    </python_controller>
+
   </controllers>
 
   <loop_functions library="${ARGOSFOLDER}/build/libpy_loop_function_interface.so"
@@ -87,9 +116,9 @@
     <distribute>
       <position method="uniform" min="-${STARTDIM},-${STARTDIM},0" max="${STARTDIM},${STARTDIM},0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="${NUM1}" max_trials="15"> 
-        <e-puck id="bc" >
-          <controller config="collab" />
+      <entity quantity="${NUMA}" max_trials="15"> 
+        <e-puck id="tA" >
+          <controller config="con_A" />
         </e-puck>
       </entity> 
     </distribute>
@@ -97,12 +126,33 @@
     <distribute>
       <position method="uniform" min="-${STARTDIM},-${STARTDIM},0" max="${STARTDIM},${STARTDIM},0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="${NUM2}" max_trials="15" base_num="${NUM1}"> 
-        <e-puck id="gr" >
-          <controller config="greedy" />
+      <entity quantity="${NUMB}" max_trials="15" base_num="${NUMB}"> 
+        <e-puck id="tB" >
+          <controller config="con_B" />
         </e-puck>
       </entity> 
     </distribute>
+
+    <distribute>
+      <position method="uniform" min="-${STARTDIM},-${STARTDIM},0" max="${STARTDIM},${STARTDIM},0" /> 
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
+      <entity quantity="${NUMC}" max_trials="15" base_num="${NUMAB}"> 
+        <e-puck id="tC" >
+          <controller config="con_C" />
+        </e-puck>
+      </entity> 
+    </distribute>
+
+    <distribute>
+      <position method="uniform" min="-${STARTDIM},-${STARTDIM},0" max="${STARTDIM},${STARTDIM},0" /> 
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
+      <entity quantity="${NUMD}" max_trials="15" base_num="${NUMABC}"> 
+        <e-puck id="tD" >
+          <controller config="con_D" />
+        </e-puck>
+      </entity> 
+    </distribute>
+
   </arena>
 
   <!-- ******************* -->
@@ -137,10 +187,10 @@
       
     <camera>
       <placements>
-        <placement index="0" position="0,0,1.5" look_at="0,0,0" up="1,0,0" lens_focal_length="${FOCALLGT}" />
+        <placement index="3" position="0,0,1.5" look_at="0,0,0" up="1,0,0" lens_focal_length="${FOCALLGT}" />
         <placement index="1" position="0,0,8" up="1,0,0" look_at="0,0,0" lens_focal_length="50" />
         <placement index="2" position="0,0,1.5" up="1,0,0" look_at="0,0,0" lens_focal_length="20" />
-        <placement index="3" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
+        <placement index="0" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
       </placements>
     </camera>
     </qt-opengl>

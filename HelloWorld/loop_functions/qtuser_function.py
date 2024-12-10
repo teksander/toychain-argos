@@ -53,7 +53,7 @@ def draw_resources_on_robots():
 	quality  = robot.variables.get_attribute("hasResource")
 
 	# Draw carried quantity
-	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp['max_Q']), res_height, quality)
+	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp[robot_type]['max_Q']), res_height, quality)
 	for i in range(quantity):
 		environment.qt_draw.cylinder([0, 0, (i*1.3)*res_height + 0.075],[], 0.5 * rob_diam, res_height, quality)
 
