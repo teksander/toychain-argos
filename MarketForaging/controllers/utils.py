@@ -68,14 +68,23 @@ class Timer:
 class FiniteStateMachine(object):
 
     def __init__(self, robot, start = None):
-        self.robot     = robot
-        self.storage   = None
-        self.prevState = start
-        self.currState = start
-        self.accumTime = dict()
-        self.startTime = time.time()
+
+        self.logger = logging.getLogger("fsm")
+        self.robot      = robot
+        self.time       = CustomTimer()
+        self.storage    = None
+        self.memory     = None
+        self.prevState  = start
+        self.currState  = start
+        self.accumTime  = dict()
+        self.startTime  = self.time.time()
         self.pass_along = None
-        
+
+        self.robot.variables.set_attribute("fsm", "0")
+
+    def step(self):
+        self.time.step()
+
     def setStorage(self,storage = None):
         self.storage = storage
 
@@ -98,11 +107,12 @@ class FiniteStateMachine(object):
         if self.currState not in self.accumTime:
             self.accumTime[self.currState] = 0
 
-        self.accumTime[self.currState] += time.time() - self.startTime
+        self.accumTime[self.currState] += self.time.time() - self.startTime
         self.prevState = self.currState
         self.currState = state
-        self.startTime = time.time()
+        self.startTime = self.time.time()
         self.pass_along = pass_along
+        self.memory     = None
     
     def query(self, state, previous = False):
         if previous:
@@ -114,10 +124,15 @@ class FiniteStateMachine(object):
         # Robot actions to perform on every transition
 
         if message != None:
-            self.robot.log.info("%s -> %s%s", self.currState, state, ' | '+message)
+            self.logger.info("%s -> %s%s", self.currState, state, ' | '+message)
         
         self.robot.variables.set_attribute("dropResource", "")
-        self.robot.variables.set_attribute("state", str(state))
+        self.robot.variables.set_attribute("fsm", str(state.value))
+
+    @property
+    def elapsed(self):
+        return self.time.time() - self.startTime
+
 
 class TxTimer:
     def __init__(self, rate, name = None):
@@ -225,6 +240,30 @@ class Accumulator:
     def unlock(self):
         self.isLocked = False
         return self
+
+# Function to set up logging
+def setup_logging(log_to_file=True, log_folder='./', log_file_name='monitor.log', robotID='1'):
+    # Create the logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+    # Format for log messages
+    log_format = '[{: >3} %(levelname)s %(name)s] %(message)s'.format(robotID)
+    formatter = logging.Formatter(log_format)
+
+    if log_to_file:
+        # Log to file
+        os.makedirs(os.path.dirname(log_folder + log_file_name), exist_ok=True) 
+        file_handler = logging.FileHandler(log_folder + log_file_name, mode='w+')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    else:
+        # Log to console
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    return logger
 
 class TicToc(object):
     """ Pendulum Class to Synchronize Output Times

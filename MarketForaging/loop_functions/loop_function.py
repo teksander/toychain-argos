@@ -29,6 +29,7 @@ os.makedirs(os.path.dirname(log_folder), exist_ok=True)
 global allresources, resource_counter
 allresources = []
 resource_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
+depleted_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
 # position_previous = dict()
 
 if 'radii' and 'counts' in lp['patches']:
@@ -118,13 +119,13 @@ def generate_resource(n = 1, qualities = None, max_attempts = 500):
             #     radius = round(random.gauss(lp['patches']['radius'], lp['patches']['radius_sigma']),2)
 
             # Generate quantity of resource and quality
-            quantity = random.randint(lp['patches']['qtty_min'], lp['patches']['qtty_max'])
-
             if not qualities:
                 quality = random.choices(list(lp['patches']['frequency']), weights=lp['patches']['frequency'].values())[0]
             else:
                 quality = qualities[i]
             
+            quantity = random.randint(lp['patches']['qtty_min'][quality], lp['patches']['qtty_max'][quality])
+
             radius = radii[quality]
             
             overlap = False
@@ -133,7 +134,7 @@ def generate_resource(n = 1, qualities = None, max_attempts = 500):
                 overlap = True
 
             # Discard if resource overlaps with other resources
-            if any([is_in_circle((res.x, res.y), (x,y), res.radius+radius) for res in allresources]):
+            if any([is_in_circle((res.x, res.y), (x,y), res.radius+radius*1.25) for res in allresources]):
                 overlap = True
 
             # Discard if resource overlaps with market
@@ -233,6 +234,7 @@ def pre_step():
     # Tasks to perform for each robot
     lastBlock = None
     for robot in allrobots:
+        robot.variables.set_attribute("newResource", "")
         robot.variables.set_attribute("at", "")
 
         # Has robot stepped into resource? YES -> Update virtual sensor
@@ -283,21 +285,25 @@ def pre_step():
 
         # Forage resources
         for robot in random.sample(other['foragers'][res], len(other['foragers'][res])):
-            carried = robot.variables.get_attribute("quantity")
-            clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
-
-            if clocks['forage'][robot].query():
-                robot.variables.set_attribute("hasResource", res.quality)
-                robot.variables.set_attribute("quantity", str(int(robot.variables.get_attribute("quantity"))+1))
-                robot.variables.set_attribute("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
-                res.quantity -= 1
 
             if not robot.variables.get_attribute("foraging"):
                 other['foragers'][res].remove(robot)
                 clocks['forage'][robot] = None
+                
+            else:
+                carried = robot.variables.get_attribute("quantity")
+                clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
+
+                if clocks['forage'][robot].query():
+                    robot.variables.set_attribute("hasResource", res.quality)
+                    robot.variables.set_attribute("quantity", str(int(robot.variables.get_attribute("quantity"))+1))
+                    robot.variables.set_attribute("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
+                    res.quantity -= 1
+
+
 
         # Regenerate resources
-        if clocks['regen'][res].query() and res.quantity < lp['patches']['qtty_max']:
+        if clocks['regen'][res].query() and res.quantity < lp['patches']['qtty_max'][res.quality]:
             res.quantity += 1
 
         # logs['patches'].log([res._json.replace(" ", "")])
@@ -314,6 +320,13 @@ def post_step():
         depleted = [res for res in allresources if res.quantity <= 0]
         allresources[:] = [res for res in allresources if res not in depleted]
         generate_resource(len(depleted), [res.quality for res in depleted])
+
+        for res in depleted:
+            depleted_counter[res.quality] += 1
+            
+            for robot in other['foragers'][res]:
+                robot.variables.set_attribute("depleted", "True")
+            
 
     # Record the resources to be drawn to a file
     with open(lp['files']['patches'], 'w', buffering=1) as f:
@@ -351,6 +364,13 @@ def destroy():
     pass
 
 def post_experiment():
+
+    file   = 'depleted.csv'
+    header = list(depleted_counter.keys())
+    logs['depleted'] = Logger(log_folder+file, header, ID = '0')
+
+    logs['depleted'].log([str(value) for value in depleted_counter.values()])
+
     print("Finished from Python!")
 
 

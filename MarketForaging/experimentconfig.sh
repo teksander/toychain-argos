@@ -16,21 +16,35 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 
 # [ARGOS]
-export NUM1=20
-export CON1="${EXPERIMENTFOLDER}/controllers/main_collab_noepochs.py"
+export NUMA=5
+export NUMB=5
+export NUMC=5
+export NUMD=0
+export NUMAB=$(echo $NUMA+$NUMB| bc)
+export NUMABC=$(echo $NUMA+$NUMB+$NUMC| bc)
 
-export NUM2=0
-export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
+export CON1="${EXPERIMENTFOLDER}/controllers/main_individ.py"
 
-export RABRANGE="2"
+export ORACLE="True"
+
+export RABRANGE_A="0.70"
+export RABRANGE_B="0.40"
+export RABRANGE_C="0.40"
+export RABRANGE_D="0.40"
+export RABRANGE_A="2"
+export RABRANGE_B="2"
+export RABRANGE_C="2"
+
 export WHEELNOISE="0"
 export TPS=10
-export DENSITY="1"
+export DENSITY="0.4"
 
-export NUMROBOTS=$(echo $NUM1+$NUM2 | bc)
+export NUMROBOTS=$(echo $NUMA+$NUMB+$NUMC+$NUMD | bc)
 export ARENADIM=$(echo "scale=3 ; sqrt($NUMROBOTS/$DENSITY)" | bc)
 export ARENADIMH=$(echo "scale=3 ; $ARENADIM/2" | bc)
 export STARTDIM=$(echo "scale=3 ; $ARENADIM/5" | bc)
+export FOCALLGT=$(echo "scale=3 ; -2 * $ARENADIM + 16" | bc)
+
 
 # [GETH]
 export BLOCKPERIOD=2

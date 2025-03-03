@@ -16,7 +16,7 @@
   <controllers>
 
    
-    <python_controller id="collab" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
+    <python_controller id="con_A" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
@@ -30,14 +30,10 @@
         <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
         <differential_steering implementation="default"/>
       </sensors>
-      <!-- No required configuration -->
-      
-      <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_collab_noepochs.py"
-      timeRate="1" />
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py" timeRate="1" />
     </python_controller>
 
-    <python_controller id="greedy" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
+    <python_controller id="con_B" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
       <!-- Normal actuator/sensor configuration follows -->
       <actuators>
         <epuck_rgb_leds implementation="default" medium="leds" />
@@ -49,13 +45,46 @@
         <epuck_proximity implementation="default" show_rays="false" />
         <epuck_ground implementation="rot_z_only" />
         <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
       </sensors>
-      <!-- No required configuration -->
-      
-      <!-- Optionally, you can pass a script as a controller parameter: -->
-      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_greedy.py"
-      timeRate="1" />
+
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py" timeRate="1" />
     </python_controller>
+
+    <python_controller id="con_C" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
+      <!-- Normal actuator/sensor configuration follows -->
+      <actuators>
+        <epuck_rgb_leds implementation="default" medium="leds" />
+        <epuck_wheels implementation="default" />
+        <epuck_range_and_bearing implementation="medium" range="2"/>
+      </actuators>
+      <sensors>
+        <positioning implementation="default" />
+        <epuck_proximity implementation="default" show_rays="false" />
+        <epuck_ground implementation="rot_z_only" />
+        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
+      </sensors>
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py" timeRate="1" />
+    </python_controller>
+
+    <python_controller id="con_D" library="/home/eksander/toychain-argos/argos-python/build/libpy_controller_interface.so">
+      <!-- Normal actuator/sensor configuration follows -->
+      <actuators>
+        <epuck_rgb_leds implementation="default" medium="leds" />
+        <epuck_wheels implementation="default" />
+        <epuck_range_and_bearing implementation="medium" range="0.40"/>
+      </actuators>
+      <sensors>
+        <positioning implementation="default" />
+        <epuck_proximity implementation="default" show_rays="false" />
+        <epuck_ground implementation="rot_z_only" />
+        <epuck_range_and_bearing implementation="medium" medium="rab" show_rays="false"/>
+        <differential_steering implementation="default"/>
+      </sensors>
+      <params script="/home/eksander/toychain-argos/MarketForaging/controllers/main_individ.py" timeRate="1" />
+    </python_controller>
+
   </controllers>
 
   <loop_functions library="/home/eksander/toychain-argos/argos-python/build/libpy_loop_function_interface.so"
@@ -67,42 +96,63 @@
   <!-- *********************** -->
   <!-- * Arena configuration * -->
   <!-- *********************** -->
-  <arena size="4.472, 4.472, 1" center="0,0,0">
+  <arena size="6.123, 6.123, 1" center="0,0,0">
 
  <floor id="f" source="image" path="/home/eksander/toychain-argos/MarketForaging/experiments/floors/market.png" />
 
-    <box id="wall_north" size="4.472,0.06,0.1" movable="false">
-      <body position="0,2.236,0" orientation="0,0,0" />
+    <box id="wall_north" size="6.123,0.06,0.1" movable="false">
+      <body position="0,3.061,0" orientation="0,0,0" />
     </box>
-    <box id="wall_south" size="4.472,0.06,0.1" movable="false">
-      <body position="0,-2.236,0" orientation="0,0,0" />
+    <box id="wall_south" size="6.123,0.06,0.1" movable="false">
+      <body position="0,-3.061,0" orientation="0,0,0" />
     </box>
-    <box id="wall_east" size="0.06,4.472,0.1" movable="false">
-      <body position="2.236,0,0" orientation="0,0,0" />
+    <box id="wall_east" size="0.06,6.123,0.1" movable="false">
+      <body position="3.061,0,0" orientation="0,0,0" />
     </box>
-    <box id="wall_west" size="0.06,4.472,0.1" movable="false">
-      <body position="-2.236,0,0" orientation="0,0,0" />
+    <box id="wall_west" size="0.06,6.123,0.1" movable="false">
+      <body position="-3.061,0,0" orientation="0,0,0" />
     </box>
 
     <distribute>
-      <position method="uniform" min="-.894,-.894,0" max=".894,.894,0" /> 
+      <position method="uniform" min="-1.224,-1.224,0" max="1.224,1.224,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="20" max_trials="15"> 
-        <e-puck id="bc" >
-          <controller config="collab" />
+      <entity quantity="5" max_trials="15"> 
+        <e-puck id="tA" >
+          <controller config="con_A" />
         </e-puck>
       </entity> 
     </distribute>
 
     <distribute>
-      <position method="uniform" min="-.894,-.894,0" max=".894,.894,0" /> 
+      <position method="uniform" min="-1.224,-1.224,0" max="1.224,1.224,0" /> 
       <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
-      <entity quantity="0" max_trials="15" base_num="20"> 
-        <e-puck id="gr" >
-          <controller config="greedy" />
+      <entity quantity="5" max_trials="15" base_num="5"> 
+        <e-puck id="tB" >
+          <controller config="con_B" />
         </e-puck>
       </entity> 
     </distribute>
+
+    <distribute>
+      <position method="uniform" min="-1.224,-1.224,0" max="1.224,1.224,0" /> 
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
+      <entity quantity="5" max_trials="15" base_num="10"> 
+        <e-puck id="tC" >
+          <controller config="con_C" />
+        </e-puck>
+      </entity> 
+    </distribute>
+
+    <distribute>
+      <position method="uniform" min="-1.224,-1.224,0" max="1.224,1.224,0" /> 
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" /> 
+      <entity quantity="0" max_trials="15" base_num="15"> 
+        <e-puck id="tD" >
+          <controller config="con_D" />
+        </e-puck>
+      </entity> 
+    </distribute>
+
   </arena>
 
   <!-- ******************* -->
@@ -137,9 +187,10 @@
       
     <camera>
       <placements>
-        <placement index="0" position="0,0,8" up="1,0,0" look_at="0,0,0" lens_focal_length="50" />
-        <placement index="1" position="0,0,1.5" up="1,0,0" look_at="0,0,0" lens_focal_length="20" />
-        <placement index="2" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
+        <placement index="3" position="0,0,1.5" look_at="0,0,0" up="1,0,0" lens_focal_length="3.754" />
+        <placement index="1" position="0,0,8" up="1,0,0" look_at="0,0,0" lens_focal_length="50" />
+        <placement index="2" position="0,0,1.5" up="1,0,0" look_at="0,0,0" lens_focal_length="20" />
+        <placement index="0" position="-10.0732,8.01142,10.9277" look_at="-9.48792,7.5567,10.2564" up="0.530115,-0.411842,0.741191" lens_focal_length="86.8" />
       </placements>
     </camera>
     </qt-opengl>

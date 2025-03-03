@@ -45,7 +45,7 @@ def draw_patches():
 
 	for res in allresources:
 		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius, res.quality, False)
-		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max']), res.quality, True)
+		environment.qt_draw.circle([res.x, res.y, 0.001],[], res.radius*(res.quantity/lp['patches']['qtty_max'][res.quality]), res.quality, True)
 		environment.qt_draw.circle([res.x, res.y, 0.0005],[], res.radius, 'gray90', True)
 
 def draw_resources_on_robots():
@@ -53,7 +53,7 @@ def draw_resources_on_robots():
 	quality  = 1.0
 
 	# Draw carried quantity
-	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp['max_Q']), res_height, quality)
+	# environment.qt_draw.cylinder([0, 0, 0.08],[], rob_diam * (quantity/cp[robot_type]['max_Q']), res_height, quality)
 	for i in range(quantity):
 		environment.qt_draw.cylinder([0, 0, (i*1.3)*res_height + 0.075],[], 0.5 * rob_diam, res_height, 'red')
 

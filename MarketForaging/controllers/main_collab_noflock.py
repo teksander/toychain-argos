@@ -647,7 +647,7 @@ def controlstep():
 
                     finished = tripList[-1].update(robot.variables.get_attribute("quantity"))
 
-                    if int(robot.variables.get_attribute("quantity")) >= cp['max_Q']:
+                    if int(robot.variables.get_attribute("quantity")) >= cp[robot_type]['max_Q']:
                         finished = True
 
                 else:

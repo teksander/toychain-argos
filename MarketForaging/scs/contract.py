@@ -74,9 +74,9 @@ class Contract(StateMixin):
         i, _ = self.findByPos(x, y)
 
         if i < 9999:
-            self.patches[i]["qtty"] = qtty
-            self.patches[i]["util"] = util
-            self.patches[i]["qlty"] = qlty
+            # self.patches[i]["qtty"] = qtty
+            # self.patches[i]["util"] = util
+            # self.patches[i]["qlty"] = qlty
             self.patches[i]["json"] = json
 
             logger.info(f"Update existing patch @ {x},{y}")
