@@ -4,7 +4,7 @@
 #######################################################################
 import random, math
 import sys, os
-import hashlib
+import hashlib, json
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -17,6 +17,7 @@ from loop_functions.params import params as lp
 
 lp['generic']['show_rays'] = False
 lp['generic']['show_pos'] = True
+lp['generic']['tkuser'] = True
 
 # /* Global Variables */
 #######################################################################
@@ -24,7 +25,7 @@ rob_diam   = 0.07/2
 
 # /* Global Functions */
 #######################################################################
-global robot, environment
+global robot, environment, tkuser
 
 def hash_to_rgb(hash_value):
     # Generate a hash object from the input value
@@ -44,13 +45,31 @@ def hash_to_rgb(hash_value):
 # /* ARGoS Functions */
 #######################################################################
 
-def init():
-	pass
+if lp['generic']['tkuser']:
+    from loop_functions.tkuser_function import BlockchainGUI
+    import threading
 
+    def run_tkuser():
+        global tkuser
+        tkuser = BlockchainGUI()
+        tkuser.start()
+    tkuser_thread = threading.Thread(target=run_tkuser, daemon=True)
+    tkuser_thread.start()
+
+def init():
+    pass
+    
 def draw_in_world():
-	pass
+    pass
 	
 def draw_in_robot():
+
+    try:
+        tkuser.send_new_blocks([])
+        print('sent blocks')
+    except:
+        print('failed')
+
 
     # Draw block hash and state hash with circles
     color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))

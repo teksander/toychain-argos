@@ -95,7 +95,8 @@ def init():
     #######################################################################
 
     # /* Init root logger */
-    robot.log = logging.getLogger(); robot.log.setLevel(10)
+    robot.log = logging.getLogger()
+    robot.log.setLevel(10)
 
     # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
@@ -235,6 +236,7 @@ def controlstep():
         last_block = w3.get_block('last')
         robot.variables.set_attribute("block", str(last_block.height))
         robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        robot.variables.set_attribute("last_block", last_block.__repr__())
         robot.variables.set_attribute("block_hash", str(last_block.hash))
         robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
         robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
