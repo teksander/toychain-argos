@@ -26,6 +26,7 @@ class BlockchainGUI:
     def __init__(self, root, node):
         self.root = root
         self.node = node
+        self.i = 0
 
         self.root.title("Blockchain Viewer")
         self.root.geometry("700x400")
@@ -42,6 +43,7 @@ class BlockchainGUI:
         # Inicia a atualização periódica da árvore
         self.update_treeview()
     
+
     def update_treeview(self):
         """ Atualiza a exibição da lista de blocos e agenda próxima atualização. """
         self.tree.delete(*self.tree.get_children())  # Limpa a tabela
@@ -52,6 +54,8 @@ class BlockchainGUI:
             ))
 
         # Atualiza a cada 2 segundos (2000 ms)
+
+
         self.root.after(2000, self.update_treeview)
 
 

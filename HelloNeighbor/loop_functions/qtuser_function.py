@@ -4,7 +4,7 @@
 #######################################################################
 import random, math
 import sys, os
-import hashlib, json
+import hashlib
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -42,7 +42,7 @@ def hash_to_rgb(hash_value):
     # Return the RGB color value as a tuple
     return [r, g, b]
 
-# /* ARGoS Functions */
+# /* tk_user Function */
 #######################################################################
 
 if lp['generic']['tkuser']:
@@ -53,8 +53,13 @@ if lp['generic']['tkuser']:
         global tkuser
         tkuser = BlockchainGUI()
         tkuser.start()
+
     tkuser_thread = threading.Thread(target=run_tkuser, daemon=True)
     tkuser_thread.start()
+
+
+# /* ARGoS Functions */
+#######################################################################
 
 def init():
     pass
@@ -64,11 +69,10 @@ def draw_in_world():
 	
 def draw_in_robot():
 
-    try:
-        tkuser.send_new_blocks([])
-        print('sent blocks')
-    except:
-        print('failed')
+    if "tkuser" in globals():
+        prod_block = robot.variables.get_attribute("prod_block")
+        if prod_block:
+            tkuser.add_block(prod_block)
 
 
     # Draw block hash and state hash with circles

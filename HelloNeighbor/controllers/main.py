@@ -236,7 +236,7 @@ def controlstep():
         last_block = w3.get_block('last')
         robot.variables.set_attribute("block", str(last_block.height))
         robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
-        robot.variables.set_attribute("last_block", last_block.__repr__())
+        robot.variables.set_attribute("prod_block", w3.get_produced_block())
         robot.variables.set_attribute("block_hash", str(last_block.hash))
         robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
         robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))

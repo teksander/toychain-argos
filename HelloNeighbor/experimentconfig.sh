@@ -26,7 +26,7 @@ export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
 export NUM2=0
 export CON2="${EXPERIMENTFOLDER}/controllers/main_greedy.py"
 
-export RABRANGE="0.5"
+export RABRANGE="2"
 export WHEELNOISE="0"
 export TPS=10
 export DENSITY="2"
