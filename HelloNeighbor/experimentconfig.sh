@@ -38,6 +38,7 @@ export STARTDIM=$(echo "scale=3 ; $ARENADIM/5" | bc)
 
 # [GETH]
 export BLOCKPERIOD=2
+export RUN_TKUSER="False"
 
 # [SC]
 export MAXWORKERS=15
@@ -55,11 +56,11 @@ export WINSIZE=5
 
 # [OTHER]
 export SEED=1500
-export TIMELIMIT=100
+export TIMELIMIT=5000
 export LENGTH=5000
 export SLEEPTIME=5
-export REPS=1
-export NOTES="debug logs"
+export REPS=5
+export NOTES="Variation osdsdsdsds0"
 
 
 

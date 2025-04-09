@@ -15,9 +15,12 @@ from controllers.utils import Vector2D
 from controllers.params import params as cp
 from loop_functions.params import params as lp
 
+if eval(os.environ['RUN_TKUSER']):
+    from loop_functions.tkuser_function import BlockchainGUI
+    import threading
+
 lp['generic']['show_rays'] = False
 lp['generic']['show_pos'] = True
-lp['generic']['tkuser'] = True
 
 # /* Global Variables */
 #######################################################################
@@ -45,15 +48,11 @@ def hash_to_rgb(hash_value):
 # /* tk_user Function */
 #######################################################################
 
-if lp['generic']['tkuser']:
-    from loop_functions.tkuser_function import BlockchainGUI
-    import threading
-
+if eval(os.environ['RUN_TKUSER']):
     def run_tkuser():
         global tkuser
         tkuser = BlockchainGUI()
         tkuser.start()
-
     tkuser_thread = threading.Thread(target=run_tkuser, daemon=True)
     tkuser_thread.start()
 

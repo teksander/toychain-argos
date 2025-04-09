@@ -79,14 +79,14 @@ run() {
 
 
 # DEFINE EXPERIMENT
-EXP=varyutil2
+EXP=EXP1
 config "REPS" 5
-config "LENGTH" 5000
+config "LENGTH" 10
 config "NOTES" "\"Variation of utility of the resource between 100 and 400\""
 
-for UTIL in $(seq 100 50 400); do 
-	CFG=${UTIL}
-	loopconfig "patches" "utility" "{'red': 1, 'green':  1, 'blue': ${UTIL}, 'yellow': 1}"
+for L in $(seq 100 50 400); do 
+	CFG=${L}
+	config "LENGTH" ${L}
 	wait
 	run    "${EXP}/${CFG}"
 done
