@@ -118,7 +118,6 @@ def init():
         robot_type = 'D'
 
     robot.variables.set_attribute("robot_type", robot_type)
-
     robot.variables.set_attribute("erb_range", str(cp[robot_type]['range']))
     
     # /* Initialize Console Logging*/
@@ -338,9 +337,18 @@ def controlstep():
         for clock in clocks.values():
             clock.reset()
         
-        # Register to Smart Contract transaction
-        tx = Transaction(sender = me.id, data = {'function': 'register', 'inputs': []})
-        w3.send_transaction(tx)
+        # Genesis state configuration
+        for i in range(int(lp['environ']['NUMROBOTS'])):
+            tx = Transaction(sender = i+1, data = {'function': 'register', 'inputs': []})
+            GENESIS.state.apply_transaction(tx, block=GENESIS)
+
+        if lp['patches']['known']:
+            with open(lp['files']['patches'], 'r') as f:
+                for line in f:
+                    res = Resource(line)
+                    txdata = {'function': 'propose', 'inputs': (res.x, res.y, res._dict)}
+                    tx = Transaction(sender=0, receiver=0, value=0, data=txdata, timestamp=0)
+                    GENESIS.state.apply_transaction(tx, block=GENESIS)
 
     else:
 

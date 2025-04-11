@@ -102,6 +102,10 @@ class Resource(object):
         return str(public_vars).replace("\'", "\"")
 
     @property
+    def _dict(self):
+        return { k:v for k,v in vars(self).items() if not k.startswith('_')}
+
+    @property
     def _desc(self):
         return '{%s, %s, %s, %s}' % (self.x, self.y, self.quality, self.quantity)
 

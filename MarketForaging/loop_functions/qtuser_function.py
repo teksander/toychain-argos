@@ -148,9 +148,9 @@ def draw_in_robot():
 	environment.qt_draw.circle(list(gps_pos-odo_pos)+[0.01],[], 0.025, hash_to_rgb(robot_type), True)
 	environment.qt_draw.ray([0,0,0.01], list(gps_pos-odo_pos)+[0.01], hash_to_rgb(robot_type), 0.5)
 
-	# Draw ERB range
-	erb_range  = robot.variables.get_attribute("erb_range")
-	environment.qt_draw.circle([0, 0, 0.00005],[], float(erb_range), 'gray90', False)
+	# # Draw ERB range
+	# erb_range  = robot.variables.get_attribute("erb_range")
+	# environment.qt_draw.circle([0, 0, 0.00005],[], float(erb_range), 'gray90', False)
 
 # Draw block number with boxes
 	# block_number = int(robot.variables.get_attribute("block"))

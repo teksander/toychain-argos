@@ -16,28 +16,25 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 
 # [ARGOS]
-export NUMA=5
-export NUMB=5
-export NUMC=5
+export NUMA=15
+export NUMB=0
+export NUMC=0
 export NUMD=0
 export NUMAB=$(echo $NUMA+$NUMB| bc)
 export NUMABC=$(echo $NUMA+$NUMB+$NUMC| bc)
 
 export CON1="${EXPERIMENTFOLDER}/controllers/main_individ.py"
 
-export ORACLE="True"
+export ORACLE="False"
 
-export RABRANGE_A="0.70"
-export RABRANGE_B="0.40"
-export RABRANGE_C="0.40"
-export RABRANGE_D="0.40"
-export RABRANGE_A="2"
-export RABRANGE_B="2"
-export RABRANGE_C="2"
+export RABRANGE_A="0.50"
+# export RABRANGE_B="0.40"
+# export RABRANGE_C="0.40"
+# export RABRANGE_D="0.40"
 
 export WHEELNOISE="0"
 export TPS=10
-export DENSITY="0.4"
+export DENSITY="0.8"
 
 export NUMROBOTS=$(echo $NUMA+$NUMB+$NUMC+$NUMD | bc)
 export ARENADIM=$(echo "scale=3 ; sqrt($NUMROBOTS/$DENSITY)" | bc)

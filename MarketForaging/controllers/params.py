@@ -10,24 +10,24 @@ params['B'] = dict()
 params['C'] = dict()
 params['D'] = dict()
 
-params['A']['speed'] = 22
-params['B']['speed'] = 12
-params['C']['speed'] = 6
+params['A']['speed'] = 12
+# params['B']['speed'] = 12
+# params['C']['speed'] = 6
 # params['D']['speed'] = 6
 
-params['A']['range'] = float(os.environ["RABRANGE_A"])
-params['B']['range'] = float(os.environ["RABRANGE_B"])
-params['C']['range'] = float(os.environ["RABRANGE_C"])
+params['A']['range'] = 0.5
+# params['B']['range'] = 0.5
+# params['C']['range'] = 0.5
 # params['D']['range'] = float(os.environ["RABRANGE_D"])
 
-params['A']['error'] = 0.05
-params['B']['error'] = 0.025
-params['C']['error'] = 0.01
+params['A']['error'] = 0.005
+# params['B']['error'] = 0.025
+# params['C']['error'] = 0.01
 # params['D']['error'] = 0.01
 
-params['A']['max_Q'] = 5
-params['B']['max_Q'] = 10
-params['C']['max_Q'] = 25
+params['A']['max_Q'] = 10
+# params['B']['max_Q'] = 10
+# params['C']['max_Q'] = 25
 # params['D']['max_Q'] = 25
 
 
