@@ -22,6 +22,11 @@ global tstart
 datadir = '/home/eksander/toychain-argos/MarketForaging/results/data'
 plotdir = '/home/eksander/toychain-argos/MarketForaging/results/plots/'
 
+EXP_CFG           = ['EXP', 'CFG'] 
+EXP_CFG_REP       = EXP_CFG + ['REP']
+EXP_CFG_REP_ID    = EXP_CFG_REP + ['ID']
+EXP_CFG_REP_BLOCK = EXP_CFG_REP + ['BLOCK']
+
 def tic():
     global tstart
     tstart = time.time()
@@ -154,6 +159,17 @@ def get_mainchain_df(df, leaf):
         
     return df.iloc[main_path]
 
+def get_mainchains(df):
+    # Process data
+    mainchains = []
+    for name, group in df.groupby(EXP_CFG_REP):
+        group = group.drop_duplicates('HASH').sort_values('BLOCK').reset_index()
+        main_leaf = group[group['TDIFF'] == group['TDIFF'].max()]['HASH'].iloc[0]
+
+        # Iterate from main_leaf to genesis -> mainchain
+        df_mainchain = get_mainchain_df(group, main_leaf)
+        mainchains += list(df_mainchain['HASH'])
+    return mainchains
 
 def convert_digraph(digraph):
     return nx.nx_pydot.from_pydot(pydotplus.graph_from_dot_data(digraph.source))

@@ -46,7 +46,7 @@ params['patches']['distribution'] = 'uniform'
 # 									     'y_sg': 0.15 * params['generic']['arena_size']}]
 # params['patches']['distribution'] = 'fixed' 
 
-params['patches']['counts'] = {'red': 1, 'green': 0, 'blue': 1, 'yellow': 0}
+params['patches']['counts'] = {'red': 1, 'green': 0, 'blue': 0, 'yellow': 0}
 # params['patches']['x'] = [ 0.25]
 # params['patches']['y'] = [ 0.25]
 
@@ -57,29 +57,29 @@ params['patches']['counts'] = {'red': 1, 'green': 0, 'blue': 1, 'yellow': 0}
 params['patches']['respawn']   = False
 params['patches']['known']     = True
 params['patches']['radius']    = 0.35
-params['patches']['qtty_min']  = 30
-params['patches']['qtty_max']  = 30
+params['patches']['qtty_min']  = 150
+params['patches']['qtty_max']  = 150
 params['patches']['dist_min']  = 0.6 * params['generic']['arena_size']/2
 params['patches']['dist_max']  = 0.9 * params['generic']['arena_size']/2
 
-params['patches']['qtty_min']  = {'red': 30, 'green': 30, 'blue': 30, 'yellow': 30}
-params['patches']['qtty_max']  = {'red': 30, 'green': 30, 'blue': 30, 'yellow': 30}
+params['patches']['qtty_min']  = {'red': 100, 'green': 150, 'blue': 150, 'yellow': 150}
+params['patches']['qtty_max']  = {'red': 100, 'green': 150, 'blue': 150, 'yellow': 150}
 
 params['patches']['radii']  = {k: params['patches']['radius'] for k in params['patches']['qualities']}
 # params['patches']['radii']  = {k: round(math.sqrt(params['patches']['qtty_min'][k])/20,2) for k in params['patches']['qualities']}
 
 # Parameters for resource economy
-params['patches']['utility']     = {'red': 150, 'green':  1, 'blue': 200, 'yellow': 300}
-params['patches']['forage_rate'] = {'red': 12, 'green':  1, 'blue': 2, 'yellow': 1}
-params['patches']['regen_rate']  = {'red': 30, 'green': 30, 'blue': 30, 'yellow': 30}
+params['patches']['utility']     = {'red': 140, 'green':  1, 'blue': 120, 'yellow': 300}
+params['patches']['forage_rate'] = {'red': 5, 'green':  1, 'blue': 1, 'yellow': 1}
+params['patches']['regen_rate']  = {'red': 10, 'green': 20, 'blue': 5, 'yellow': 20}
 
 params['patches']['dec_returns'] = dict()
 params['patches']['dec_returns']['func']   = 'linear'                       # constant, linear or logarithmic decreasing returns
-params['patches']['dec_returns']['thresh'] = 30  # qqty of resource before dec returns starts
-params['patches']['dec_returns']['slope']  = 0.33
+params['patches']['dec_returns']['thresh'] = 100  # qqty of resource before dec returns starts
+params['patches']['dec_returns']['slope']  = 0.1
 
 params['patches']['dec_returns']['func_robot']  = 'linear'                  # seconds each resource is slower than previous
-params['patches']['dec_returns']['slope_robot'] = 0
+params['patches']['dec_returns']['slope_robot'] = 1
 params['patches']['forage_together'] = True
 
 # params['patches']['dec_returns']['func_robot']  = 'exp'                  # seconds each resource is slower than previous

@@ -16,18 +16,18 @@ export ARGOSTEMPLATE="${EXPERIMENTFOLDER}/experiments/${ARGOSNAME}.x.argos"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 
 # [ARGOS]
-export NUMA=15
+export NUMA=20
 export NUMB=0
 export NUMC=0
 export NUMD=0
 export NUMAB=$(echo $NUMA+$NUMB| bc)
 export NUMABC=$(echo $NUMA+$NUMB+$NUMC| bc)
 
-export CON1="${EXPERIMENTFOLDER}/controllers/main_individ.py"
+export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
 
 export ORACLE="False"
 
-export RABRANGE_A="0.50"
+export RABRANGE_A="2"
 # export RABRANGE_B="0.40"
 # export RABRANGE_C="0.40"
 # export RABRANGE_D="0.40"

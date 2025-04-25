@@ -182,7 +182,6 @@ def forage_rate(res, carried = 0):
     return (cost_patch + cost_robot)*TPS
 
 def init():
-
     # Init resources in the arena
     total_count = 0
     qualities   = []
@@ -192,11 +191,19 @@ def init():
 
     generate_resource(total_count, qualities = qualities)
 
+    # Record the resources to be drawn to a file
+    with open(lp['files']['patches'], 'w', buffering=1) as f:
+        for res in allresources:
+            f.write(res._json+'\n')
+
+    for robot in allrobots:
+        robot.param.set("resources", allresources)
+
     # Init robot parameters
     for robot in allrobots:
 
-        robot.id = int(robot.variables.get_attribute("id"))
-        robot.variables.set_attribute("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
+        robot.id = int(robot.param.get("id"))
+        robot.param.set("eff", str(lp['economy']['efficiency_best']+robot.id*lp['economy']['efficiency_step']))
         
     # Init logfiles for loop function
     file   = 'simulation.csv'
@@ -234,8 +241,8 @@ def pre_step():
     # Tasks to perform for each robot
     lastBlock = None
     for robot in allrobots:
-        robot.variables.set_attribute("newResource", "")
-        robot.variables.set_attribute("at", "")
+        robot.param.set("newResource", "")
+        robot.param.set("at", "")
 
         # Has robot stepped into resource? YES -> Update virtual sensor
         for res in allresources:
@@ -243,11 +250,11 @@ def pre_step():
             if is_in_circle(robot.position.get_position(), (res.x, res.y), res.radius):
 
                 # Update robot virtual sensor
-                robot.variables.set_attribute("newResource", res._json)
-                robot.variables.set_attribute("at", res._json)
+                robot.param.set("newResource", res._json)
+                robot.param.set("at", res._json)
                 
                 # Robot is foraging? YES -> Add to foragers
-                if robot.variables.get_attribute("foraging"):
+                if robot.param.get("foraging"):
 
                     if robot not in other['foragers'][res]:
                         other['foragers'][res].add(robot)
@@ -255,30 +262,30 @@ def pre_step():
                         
         # Has robot stepped into market drop area? YES
         if is_in_circle(robot.position.get_position(), (cache.x, cache.y), cache.radius):
-            robot.variables.set_attribute("at", "cache")
+            robot.param.set("at", "cache")
 
             # Does the robot carry resource? YES -> Sell resource
-            resource_quality = robot.variables.get_attribute("hasResource")
-            if resource_quality and robot.variables.get_attribute("dropResource"):
+            resource_quality = robot.param.get("hasResource")
+            if resource_quality and robot.param.get("dropResource"):
 
-                resource_counter[resource_quality] += int(robot.variables.get_attribute("quantity")) 
+                resource_counter[resource_quality] += int(robot.param.get("quantity")) 
                 accums['collection'][robot.id].acc(lp['patches']['utility'][resource_quality])
 
                 logs['collection'].log([robot.id, resource_quality, resource_counter[resource_quality]])
 
                 if clocks['regen'][res].rate == "on_drop":
-                    res.quantity += int(robot.variables.get_attribute("quantity"))
+                    res.quantity += int(robot.param.get("quantity"))
 
-                robot.variables.set_attribute("hasResource", "")
-                robot.variables.set_attribute("quantity", "0")
-                robot.variables.set_attribute("resourceCount", str(int(robot.variables.get_attribute("resourceCount"))+1))
+                robot.param.set("hasResource", "")
+                robot.param.set("quantity", 0)
+                robot.param.set("resourceCount", str(int(robot.param.get("resourceCount"))+1))
 
         # if clocks['block'].query():
-        #     block = eval(robot.variables.get_attribute("block"))
+        #     block = eval(robot.param.get("block"))
         #     if lastBlock == None or block['totalDifficulty']>lastBlock['totalDifficulty']:
         #         lastBlock = block
         #         print('New Block:', lastBlock['number'], lastBlock['totalDifficulty'])
-        # robot.variables.set_attribute('block', repr(block))
+        # robot.param.set('block', repr(block))
 
     # Tasks to perform for each resource
     for res in allresources:
@@ -286,18 +293,18 @@ def pre_step():
         # Forage resources
         for robot in random.sample(other['foragers'][res], len(other['foragers'][res])):
 
-            if not robot.variables.get_attribute("foraging"):
+            if not robot.param.get("foraging"):
                 other['foragers'][res].remove(robot)
                 clocks['forage'][robot] = None
                 
             else:
-                carried = robot.variables.get_attribute("quantity")
+                carried = robot.param.get("quantity")
                 clocks['forage'][robot].set(forage_rate(res, carried), reset=False)
 
                 if clocks['forage'][robot].query():
-                    robot.variables.set_attribute("hasResource", res.quality)
-                    robot.variables.set_attribute("quantity", str(int(robot.variables.get_attribute("quantity"))+1))
-                    robot.variables.set_attribute("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
+                    robot.param.set("hasResource", res.quality)
+                    robot.param.set("quantity", robot.param.get("quantity")+1)
+                    robot.param.set("forageTimer", str(round(clocks['forage'][robot].rate, 2)))
                     res.quantity -= 1
 
 
@@ -325,7 +332,7 @@ def post_step():
             depleted_counter[res.quality] += 1
             
             for robot in other['foragers'][res]:
-                robot.variables.set_attribute("depleted", "True")
+                robot.param.set("depleted", "True")
             
 
     # Record the resources to be drawn to a file
