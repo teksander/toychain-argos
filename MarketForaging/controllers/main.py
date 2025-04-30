@@ -495,71 +495,74 @@ def controlstep():
             SWITCH_PROB            = 0.90    # Probability of switching if dissatisfied
             CHOOSE_OLDEST          = 0.5
 
+            # current_action = fsm.pass_along
+            # action = current_action
+            # my_patch = w3.sc.getMyPatch(me.id)
+                
+            # # Transition state  
+            # if my_patch:
+            #     action = my_patch['id']
+
+            # # Transact to be assigned a patch
+            # elif not txs['plan']:
+            #     txdata = {'function': 'planner', 'inputs': ()}
+            #     txs['plan'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
+            #     w3.send_transaction(txs['plan'])
+
+            # else:
+            #     if w3.get_transaction_receipt(txs['plan']):
+            #         txs['plan'] = None
+
             current_action = fsm.pass_along
             action = current_action
-            my_patch = w3.sc.getMyPatch(me.id)
-                
-            # Transition state  
-            if my_patch:
-                action = my_patch['id']
 
-            # Transact to be assigned a patch
-            elif not txs['plan']:
-                txdata = {'function': 'planner', 'inputs': ()}
-                txs['plan'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['plan'])
-
+            # Get the robot's profit from its last trip
+            if tripList:
+                my_profit = tripList[-1].profit
             else:
-                if w3.get_transaction_receipt(txs['plan']):
-                    txs['plan'] = None
+                my_profit = 0
 
-            # # Get the robot's profit from its last trip
-            # if tripList:
-            #     my_profit = tripList[-1].profit
-            # else:
-            #     my_profit = 0
+            if current_action == -1:
+                my_profit = 0
 
-            # if current_action == -1:
-            #     my_profit = 0
+            # Compute the average patch profit
+            all_profits = [p['profit'] for p in all_patches]
+            avg_profit = sum(all_profits) / len(all_profits)
 
-            # # Compute the average patch profit
-            # all_profits = [p['profit'] for p in all_patches]
-            # avg_profit = sum(all_profits) / len(all_profits)
+            # Decide if we are satisfied or dissatisfied
+            # satisfied = (my_profit >= avg_profit - DISSATISFACTION_MARGIN and my_profit >= 0)
+            # satisfied = (my_profit >= avg_profit and my_profit >= 0)
+            satisfied = (my_profit >= 0)
 
-            # # Decide if we are satisfied or dissatisfied
-            # # satisfied = (my_profit >= avg_profit - DISSATISFACTION_MARGIN and my_profit >= 0)
-            # # satisfied = (my_profit >= avg_profit and my_profit >= 0)
-            # satisfied = (my_profit >= 0)
+            if satisfied:
+                action = current_action
 
-            # if satisfied:
-            #     action = current_action
+                # Some probability of exploration 
+                if random.random() < EXPLORATION_PROB:
 
-            #     # Some probability of exploration 
-            #     if random.random() < EXPLORATION_PROB:
+                    for patch in sorted(all_patches, key=lambda p: p['last_drop']):
+                        if random.random() < CHOOSE_OLDEST:
+                            action = patch['id']
+                            break
 
-            #         for patch in sorted(all_patches, key=lambda p: p['last_drop']):
-            #             if random.random() < CHOOSE_OLDEST:
-            #                 action = patch['id']
-            #                 break
+            if not satisfied:
+                action = current_action
 
-            # if not satisfied:
-            #     action = current_action
+                # High probability of changing
+                if random.random() < SWITCH_PROB:
+                    positive_patches = [p for p in all_patches if p['profit'] > 0]
 
-            #     # High probability of changing
-            #     if random.random() < SWITCH_PROB:
-            #         positive_patches = [p for p in all_patches if p['profit'] > 0]
+                    # Idling is better than negative profit
+                    if not positive_patches:
+                        action = -1
 
-            #         # Idling is better than negative profit
-            #         if not positive_patches:
-            #             action = -1
+                    if positive_patches:
 
-            #         if positive_patches:
+                        # Weights are the raw profits, so patches with higher profit more likely
+                        patch_ids = [p['id'] for p in positive_patches]
+                        weights   = [p['profit'] for p in positive_patches]
 
-            #             # Weights are the raw profits, so patches with higher profit more likely
-            #             patch_ids = [p['id'] for p in positive_patches]
-            #             weights   = [p['profit'] for p in positive_patches]
-
-            #             action = random.choices(patch_ids, weights=weights)[0]
+                        action = random.choices(patch_ids, weights=weights)[0]
 
 
             if action == -1:
