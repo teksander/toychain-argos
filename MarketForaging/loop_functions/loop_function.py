@@ -26,7 +26,8 @@ os.makedirs(os.path.dirname(log_folder), exist_ok=True)
 # /* Global Variables */
 #######################################################################
 
-global allresources, resource_counter
+global allresources, resource_counter, step
+step = 1
 allresources = []
 resource_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
 depleted_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
@@ -60,7 +61,6 @@ TPS = int(lp['environ']['TPS'])
 global clocks, accums, logs, other
 clocks, accums, logs, other = dict(), dict(), dict(), dict()
 
-clocks['simlog'] = Timer(10*TPS)
 # accums['distance'] = Accumulator()
 # accums['distance_forage'] = Accumulator()
 # accums['distance_explore'] = Accumulator()
@@ -77,8 +77,14 @@ cache    = Resource({"x":lp['cache']['x'], "y":lp['cache']['y'], "radius": lp['c
 
 global allrobots
 
+    #     # Append new resource to the global list of resources
+    #     allresources.append(Resource({'x':x, 'y':y, 'radius':radius, 'quantity':quantity, 'quality':quality, 'utility':lp['patches']['utility'][quality]}))
+    #     allresources[-1].id = len(allresources)-1
+    #     clocks['regen'][allresources[-1]] = Timer(lp['patches']['regen_rate'][allresources[-1].quality]*TPS)
+    #     other['foragers'][allresources[-1]] = set()
+
 def generate_resource(n = 1, qualities = None, max_attempts = 500):
-    global stopFlag
+    global stopFlag, allresources, clocks, other
     for i in range(n):
         overlap = True
         radius = 0
@@ -115,7 +121,7 @@ def generate_resource(n = 1, qualities = None, max_attempts = 500):
 
             
             # Generate a new resource radius
-            # while radius <= 0:
+            # while radius <= 0:clock
             #     radius = round(random.gauss(lp['patches']['radius'], lp['patches']['radius_sigma']),2)
 
             # Generate quantity of resource and quality
@@ -208,7 +214,7 @@ def init():
     # Init logfiles for loop function
     file   = 'simulation.csv'
     header = ['TPS', 'RAM', 'CPU']
-    logs['simulation'] = Logger(log_folder+file, header, ID = '0')
+    logs['simulation'] = Logger(log_folder+file, header, rate = 5, ID = '0')
 
     file   = 'loop.csv'
     header = list(resource_counter) + ['TOTAL', 'VALUE']
@@ -316,7 +322,7 @@ def pre_step():
         # logs['patches'].log([res._json.replace(" ", "")])
 
 def post_step():
-    global startFlag, clocks, accums, resource_counter
+    global startFlag, clocks, accums, resource_counter, step
     global RAM, CPU
 
     if not startFlag:
@@ -341,17 +347,18 @@ def post_step():
             f.write(res._json+'\n')
 
     # Logging of simulation simulation (RAM, CPU, TPS)   
-    if clocks['simlog'].query():
+    if logs['simulation'].query():
         RAM = getRAMPercent()
         CPU = getCPUPercent()
-    TPS = round(1/(time.time()-logs['simulation'].latest))
-    logs['simulation'].log([TPS, CPU, RAM])
+        TPS = round(1/(time.time()-logs['simulation'].latest))
+        logs['simulation'].log([TPS, CPU, RAM])
 
-    # Logging of loop function variables
-    logs['loop'].log([str(value) for value in resource_counter.values()] 
-              + [sum(resource_counter.values())] 
-              + [sum([resource_counter[x]*lp['patches']['utility'][x] for x in lp['patches']['utility']])])
-
+    # # Logging of loop function variables
+    # logs['loop'].log([str(value) for value in resource_counter.values()] 
+    #           + [sum(resource_counter.values())] 
+    #           + [sum([resource_counter[x]*lp['patches']['utility'][x] for x in lp['patches']['utility']])])
+    
+    step += 1
 
 def is_experiment_finished():
     pass

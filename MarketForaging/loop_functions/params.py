@@ -46,7 +46,7 @@ params['patches']['distribution'] = 'uniform'
 # 									     'y_sg': 0.15 * params['generic']['arena_size']}]
 # params['patches']['distribution'] = 'fixed' 
 
-params['patches']['counts'] = {'red': 1, 'green': 0, 'blue': 0, 'yellow': 0}
+params['patches']['counts'] = {'red': 1, 'green': 1, 'blue': 1, 'yellow': 1}
 # params['patches']['x'] = [ 0.25]
 # params['patches']['y'] = [ 0.25]
 
