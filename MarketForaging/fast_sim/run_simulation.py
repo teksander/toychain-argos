@@ -4,6 +4,7 @@
 import random
 import sys, os
 import importlib
+import copy
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,23 +16,6 @@ from decisions.participant_0 import *
 
 # /* Global Variables */
 #######################################################################
-
-TPS = 10
-
-# Initialize timers/accumulators/logs:
-global clocks, other
-clocks, other = dict(), dict()
-
-clocks['regen']      = dict()
-clocks['travel']     = dict()
-clocks['forage']     = dict()
-other['foragers']    = dict()
-
-global allrobots, allresources
-allrobots, allresources = [], []
-
-global resource_counter
-resource_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
 
 def generate_resource(n = 1, qualities = None, max_attempts = 500):
 
@@ -90,9 +74,11 @@ def init():
         robot.param.set("total_profit", 0)
         robot.param.set("first_col", 0)
         robot.param.set("VC", 0)
+        robot.long_run_decision = controller_registry.get(int(robot.id), controller_registry[0])
         robot.trips = [Trip()]
         clocks['travel'][robot] = Timer()
         allrobots.append(robot)
+    random.shuffle(allrobots)
 
 def pre_step():
     global resource_counter
@@ -108,7 +94,7 @@ def pre_step():
 
 
     # Tasks to perform for each robot
-    for robot in allrobots:
+    for robot in random.sample(allrobots,len(allrobots)):
 
         # Short-run decision
         if robot.param.get("foraging") and robot.param.get("at") != -1:
@@ -157,25 +143,24 @@ def pre_step():
         elif not robot.param.get("foraging"):
 
             if clocks['travel'][robot].query():
-                
-                long_run_decision = controller_registry.get(robot.id, controller_registry[0])
 
-                choice = long_run_decision(robot, allresources, robot.param.get("at"))
+                choice = robot.long_run_decision(robot, allresources, robot.param.get("at"))
+                # print(f"Robot {i}: controller {robot.long_run_decision}, quantity {robot.param.get('quantity')}, at {robot.param.get('at')}, profit {robot.param.get('profit')}")
 
-                if choice == robot.param.get("at"):
-                    print(step, ' ', robot.id, 'resuming')
-                    robot.param.set("foraging", True)
-                    robot.param.set("last_col", step)
-                    robot.param.set("first_col", step)
-                
-                elif choice == -1:
+
+                if choice == -1:
                     print(step, ' ', robot.id, 'idling')
                     robot.param.set("at", choice)
                     robot.param.set("VC", 0)
                     robot.param.set("ATC", 0)
                     robot.param.set("AVC", 0)
                     robot.param.set("profit", 0)
-                    # clocks['travel'][robot].reset()
+
+                elif choice == robot.param.get("at"):
+                    print(step, ' ', robot.id, 'resuming')
+                    robot.param.set("foraging", True)
+                    robot.param.set("last_col", step)
+                    robot.param.set("first_col", step)
 
                 else:
                     print(step, ' ', robot.id, 'changing ', choice)
@@ -188,10 +173,10 @@ def pre_step():
 
 
     # Tasks to perform for each resource
-    for res in allresources:
+    for res in random.sample(allresources,len(allresources)):
 
         # Robot is foraging? YES -> Add to foragers
-        for robot in allrobots:
+        for robot in random.sample(allrobots,len(allrobots)):
             if robot.param.get("at") == res.id and robot.param.get("foraging"):
                 if robot not in other['foragers'][res]:
                     other['foragers'][res].add(robot)
@@ -227,7 +212,8 @@ def pre_step():
 if __name__ == "__main__":
 
     print("Initializing simulation...")
-    
+    random.seed(42)
+    np.random.seed(42)
 ##############################################
     lp = dict()
     lp['patches'] = dict()
@@ -275,142 +261,198 @@ if __name__ == "__main__":
             try:
                 module = importlib.import_module(f"{PARTICIPANT_DIR}.{module_name}")
                 robot_id = int(module_name.split("_")[1])
+                if robot_id == force_controller:
+                    force_module = module.long_run_decision
                 controller_registry[robot_id] = module.long_run_decision
             except Exception as e:
                 print(f"Failed to load {module_name}: {e}")
+    
+    if force_controller > 0:
+        controller_registry = {k:module.long_run_decision for k in controller_registry}
 
     if not use_participant_decisions:
         controller_registry = {0: controller_registry[0]}
-    print(controller_registry)
 
 
 ##############################################
 
-    # Initialize simulation
-    init()
-    sttime = tt.time()
-    print(f"Initialized {len(allresources)} resources and {len(allrobots)} robots.")
+    total_multirun_profit = {i: 0 for i in range(n)}
+    total_multirun_collection = 0
 
-    # Simulation loop  # or whatever value you want
-    step = 0
-    time = np.arange(max_steps)
-    Tr = sum(resource_counts.values())
+    for i in range(N_runs):
+        TPS = 10
 
-    q_p = np.zeros((Tr, max_steps))          # Quantity at patch over time
-    c_p = np.zeros((Tr, max_steps))          # Cost at patch over time
-    q_r = np.zeros((Tr, max_steps))          # Quantity carried by all robots over time
-    f_r = np.zeros((Tr, max_steps))          # number of foraging robots
-    profit = np.zeros((Tr, max_steps))       
-    q_c    = np.zeros((Tr, max_steps)) 
+        # Initialize timers/accumulators/logs:
+        global clocks, other
+        clocks, other = dict(), dict()
 
-    ind_qr     = np.zeros((n, max_steps)) 
-    ind_profit = np.zeros((n, max_steps))      # Profit over time
-    ind_q    = np.zeros((n, max_steps)) 
-    ind_mc   = np.zeros((n, max_steps)) 
-    ind_cost = np.zeros((n, max_steps)) 
-    ind_fr   = np.zeros((n, max_steps)) 
-    ind_atc   = np.zeros((n, max_steps)) 
-    ind_avc   = np.zeros((n, max_steps)) 
-    ind_at    = np.zeros((n, max_steps)) 
-         # quantity collected over time
+        clocks['regen']      = dict()
+        clocks['travel']     = dict()
+        clocks['forage']     = dict()
+        other['foragers']    = dict()
 
-    while step < max_steps:
-        pre_step()
+        global allrobots, allresources
+        allrobots, allresources = [], []
 
-        for i, res in enumerate(allresources):
-            q_p[i, step] = res.quantity       
-            c_p[i, step] = forage_rate(res)       
-            # q_r[i, step] = sum([robot.param.get("quantity") for robot in allrobots if robot.get.param("at")==i])
-            q_c[i, step] = resource_counter[res.quality]   
-            profit[i, step] = res.trips[-1].P
+        global resource_counter
+        resource_counter = {'red': 0, 'green': 0 , 'blue': 0, 'yellow': 0}
+        
+        # Initialize simulation
+        init()
+        sttime = tt.time()
+        print(f"Initialized {len(allresources)} resources and {len(allrobots)} robots.")
 
-        for i, robot in enumerate(allrobots):
-            ind_profit[i, step] = robot.param.get("profit")
-            ind_qr[i, step] = robot.param.get("quantity")
-            ind_q[i, step] = robot.param.get("quantity")
-            ind_mc[i, step] = robot.param.get("mc_col")
-            ind_cost[i, step] = robot.param.get("VC")
-            ind_atc[i, step] = robot.param.get("ATC")
-            ind_avc[i, step] = robot.param.get("AVC")
-            ind_at[i, step] = robot.param.get("at")
+        # Simulation loop  # or whatever value you want
+        step = 0
+        time = np.arange(max_steps)
+        Tr = sum(resource_counts.values())
 
-        step += 1
+        q_p = np.zeros((Tr, max_steps))          # Quantity at patch over time
+        c_p = np.zeros((Tr, max_steps))          # Cost at patch over time
+        q_r = np.zeros((Tr, max_steps))          # Quantity carried by all robots over time
+        f_r = np.zeros((Tr, max_steps))          # number of foraging robots
+        profit = np.zeros((Tr, max_steps))       
+        q_c    = np.zeros((Tr, max_steps)) 
 
-    print(f"Simulation finished after {step} steps.")
-    print(f"Final resources collected: {resource_counter}")
-    print(f"Final profits collected: {[robot.param.get('profit') for robot in allrobots]}")
-    print(f"Quantity at patch: {[res.quantity for res in allresources]}")
-    print(f"Simulation duration: {tt.time() - sttime:.1f}s")
+        ind_qr     = np.zeros((n, max_steps)) 
+        ind_profit = np.zeros((n, max_steps))      # Profit over time
+        ind_tprofit = np.zeros((n, max_steps))
+        ind_q    = np.zeros((n, max_steps)) 
+        ind_mc   = np.zeros((n, max_steps)) 
+        ind_cost = np.zeros((n, max_steps)) 
+        ind_fr   = np.zeros((n, max_steps)) 
+        ind_atc   = np.zeros((n, max_steps)) 
+        ind_avc   = np.zeros((n, max_steps)) 
+        ind_at    = np.zeros((n, max_steps)) 
+            # quantity collected over time
 
-    time = time*timedelta/60
-    n_plots = 5
-    j = 1
-    plt.figure(figsize=(12, 4*n_plots))
-   
-    plt.subplot(n_plots, 1, j)
-    for i in range(Tr):
-        plt.plot(time, q_p[i], color=allresources[i].quality, label='')
-    plt.ylabel("Quantity $q_p$ (per patch)")
-    plt.ylim(bottom=np.min(q_p) * 0.8, top=np.max(q_p))
-    j+=1
+        while step < max_steps:
+            pre_step()
 
-    plt.subplot(n_plots, 1, j)
-    for i in range(Tr):
-        plt.plot(time, q_c[i], color=allresources[i].quality, label='')
-    plt.ylabel("Quantity Collected (per patch)")
-    j+=1
+            for i, res in enumerate(allresources):
+                q_p[i, step] = res.quantity       
+                c_p[i, step] = forage_rate(res)       
+                # q_r[i, step] = sum([robot.param.get("quantity") for robot in allrobots if robot.get.param("at")==i])
+                q_c[i, step] = resource_counter[res.quality]   
+                profit[i, step] = res.trips[-1].P
 
-    plt.subplot(n_plots, 1, j)
-    for i in range(Tr):
-        plt.plot(time, profit[i], color=allresources[i].quality, label='')
-    plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, label='Zero Profit') 
-    plt.ylabel("Profit (per patch)")
-    j+=1
+            for i, robot in enumerate(allrobots):
+                ind_profit[i, step] = robot.param.get("profit")
+                ind_tprofit[i, step] = robot.param.get("total_profit")
+                ind_qr[i, step] = robot.param.get("quantity")
+                ind_q[i, step] = robot.param.get("quantity")
+                ind_mc[i, step] = robot.param.get("mc_col")
+                ind_cost[i, step] = robot.param.get("VC")
+                ind_atc[i, step] = robot.param.get("ATC")
+                ind_avc[i, step] = robot.param.get("AVC")
+                ind_at[i, step] = robot.param.get("at")
+
+            step += 1
+
+        print(f"Simulation finished after {step} steps.")
+        print(f"Final resources collected: {resource_counter}")
+        print(f"Final profits collected: {[robot.param.get('profit') for robot in allrobots]}")
+        print(f"Quantity at patch: {[res.quantity for res in allresources]}")
+        print(f"Simulation duration: {tt.time() - sttime:.1f}s")
+        print(controller_registry)
+        print(f"Robot {i}: controller {robot.long_run_decision}, quantity {robot.param.get('quantity')}, at {robot.param.get('at')}, profit {robot.param.get('profit')}")
+
+        
+        final_profits = {robot.id: robot.param.get('total_profit') for robot in allrobots}
+        # final_collection = sum(resource_counter.values())
+
+        # total_multirun_profit     += np.array(final_profits)
+        # total_multirun_collection += final_collection
+
+        ordered_profits = np.array([final_profits[i] for i in range(n)])
+        # total_multirun_profit += ordered_profits
+        for rid, profit in final_profits.items():
+            total_multirun_profit[rid] += profit
+        
+    print("FINAL RESULTS")
+    print(f"Robot Profits: {total_multirun_profit}")
+    print(f"Swarm Stockpile: {total_multirun_collection}")
+
+    if N_runs == 1:
+        time = time*timedelta/60
+        n_plots = 5
+        j = 1
+        plt.figure(figsize=(12, 4*n_plots))
+    
+        plt.subplot(n_plots, 1, j)
+        for i in range(Tr):
+            plt.plot(time, q_p[i], color=allresources[i].quality, label='')
+        plt.ylabel("Quantity $q_p$ (per patch)")
+        plt.ylim(bottom=np.min(q_p) * 0.8, top=np.max(q_p))
+        j+=1
+
+        plt.subplot(n_plots, 1, j)
+        for i in range(Tr):
+            plt.plot(time, q_c[i], color=allresources[i].quality, label='')
+        plt.ylabel("Quantity Collected (per patch)")
+        j+=1
+
+        plt.subplot(n_plots, 1, j)
+        for i in range(Tr):
+            plt.plot(time, profit[i], color=allresources[i].quality, label='')
+        plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, label='Zero Profit') 
+        plt.ylabel("Profit (per patch)")
+        j+=1
 
 
-    plt.subplot(n_plots, 1, j)
-    for i in range(n):
-        plt.plot(time, ind_profit[i], label=f'Profit {i+1}')
-    plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, label='Zero Profit') 
-    plt.ylabel("Profit (per robot)")
-    j+=1
-
-    # plt.subplot(n_plots, 1, j)
-    # for i in range(n):
-    #     plt.scatter(time[ind_at[i]>=0], ind_at[i][ind_at[i]>=0])
-    # plt.ylabel("Is foraging patch? (per robot)")
-    # j+=1
-
-    # plt.subplot(n_plots, 1, j)
-    # colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    # for i in range(n):
-    #     color = colors[i % len(colors)]  # Cycle through if n > number of default colors
-    #     plt.plot(time, ind_atc[i], color=color)
-    #     plt.plot(time, ind_avc[i], color=color, linestyle='--')  # Use a different linestyle for distinction
-    # plt.axhline(y=allresources[0].utility, color='gray', linestyle='--', linewidth=1, label='Utility') 
-    # plt.axhline(y=allresources[0].utility*VC_FATOR, color='gray', linestyle='--', linewidth=1, label='Utility') 
-    # plt.xlabel("Time (minutes)")
-    # plt.ylabel("Costs (per robot)")
-    # j += 1
-
-    plt.tight_layout()
-    plt.show()
-
-
-    # Marginal costs plot (one per patch)
-    plt.figure(figsize=(12, 4*Tr))
-    for j in range(Tr):
-        resource = allresources[j]
-        plt.subplot(n_plots, 1, j+1)
+        plt.subplot(n_plots, 1, j)
         for i in range(n):
-            mask = (ind_mc[i] != 0) & (ind_at[i] == resource.id)
-            plt.scatter(time[mask], ind_mc[i][mask], s=10)
-        plt.axhline(y=resource.utility, color='gray', linestyle='--', linewidth=1, label='Utility') 
-        plt.text(-0.06, 0.5, f'{resource.quality} patch', va='center', ha='center', rotation='vertical', transform=plt.gca().transAxes, fontweight='bold')
-        c_p_ema = pd.Series(c_p[j]).ewm(span=20, adjust=False).mean()
-        plt.plot(time, c_p_ema, color='gray')
+            plt.plot(time, ind_profit[i], label=f'Profit {i+1}')
+        plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, label='Zero Profit') 
+        plt.ylabel("Profit (per robot)")
         plt.legend()
         j+=1
 
-    plt.tight_layout()
-    plt.show()
+        plt.subplot(n_plots, 1, j)
+        for i in range(n):
+            plt.plot(time, ind_tprofit[i], label=f'Profit {i+1}')
+        plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, label='Zero Profit') 
+        plt.ylabel("Total Profit (per robot)")
+        plt.legend()
+        j+=1
+
+
+        # plt.subplot(n_plots, 1, j)
+        # for i in range(n):
+        #     plt.scatter(time[ind_at[i]>=0], ind_at[i][ind_at[i]>=0])
+        # plt.ylabel("Is foraging patch? (per robot)")
+        # j+=1
+
+        # plt.subplot(n_plots, 1, j)
+        # colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        # for i in range(n):
+        #     color = colors[i % len(colors)]  # Cycle through if n > number of default colors
+        #     plt.plot(time, ind_atc[i], color=color)
+        #     plt.plot(time, ind_avc[i], color=color, linestyle='--')  # Use a different linestyle for distinction
+        # plt.axhline(y=allresources[0].utility, color='gray', linestyle='--', linewidth=1, label='Utility') 
+        # plt.axhline(y=allresources[0].utility*VC_FATOR, color='gray', linestyle='--', linewidth=1, label='Utility') 
+        # plt.xlabel("Time (minutes)")
+        # plt.ylabel("Costs (per robot)")
+        # j += 1
+
+        plt.tight_layout()
+        plt.show()
+
+
+        # Marginal costs plot (one per patch)
+        plt.figure(figsize=(12, 4*Tr))
+        for j in range(Tr):
+            resource = allresources[j]
+            plt.subplot(n_plots, 1, j+1)
+            for i in range(n):
+                mask = (ind_mc[i] != 0) & (ind_at[i] == resource.id)
+                plt.scatter(time[mask], ind_mc[i][mask], s=10)
+            plt.axhline(y=resource.utility, color='gray', linestyle='--', linewidth=1, label='Utility') 
+            plt.text(-0.06, 0.5, f'{resource.quality} patch', va='center', ha='center', rotation='vertical', transform=plt.gca().transAxes, fontweight='bold')
+            c_p_ema = pd.Series(c_p[j]).ewm(span=20, adjust=False).mean()
+            plt.plot(time, c_p_ema, color='gray')
+            plt.legend()
+            j+=1
+
+        plt.tight_layout()
+        plt.show()

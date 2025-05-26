@@ -5,10 +5,14 @@ import math, random
 # --------------------------
 timedelta = 0.1
 max_steps = 18000
-use_participant_decisions = False
+use_participant_decisions = True 
+force_controller = -1
 
 # Number of robots
-n = 12
+n = 5
+
+# Number of runs
+N_runs = 20
 
 # Number of resources
 resource_counts = {'red': 1, 'blue': 1, 'green': 1}
@@ -19,7 +23,7 @@ travel_var  = {'red': 20, 'blue': 20, 'green': 20}
 
 # Qm and R  (higher -> more resources)
 Qm = {'red': 300, 'blue': 300, 'green': 300}
-R  = {'red': 1, 'blue': 1.2, 'green': 1.3}
+R  = {'red': 0.5, 'blue': 0.6, 'green': 0.7}
 
 # c0 and c1 (higher -> more resources)
 c0  = {'red': 0, 'blue': 0, 'green': 0}
@@ -38,8 +42,6 @@ Cm = 150
 
 def long_run_decision(robot, allresources, current_action):
     # Return the patch index for the next forage trip (-1 means idle)
-    # Execution: once after every trip
-    #            every timestep if robot is idle
 
     # Current foraging resource index (-1 for idle)
     next_action = current_action
