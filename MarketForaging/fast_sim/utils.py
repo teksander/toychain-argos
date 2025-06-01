@@ -28,11 +28,9 @@ class Robot:
         • robot.param.get(...)
         • robot.param.set(...)
     """
-    _id_counter = 0                   # auto‑incremented ID for convenience
 
-    def __init__(self):
-        Robot._id_counter += 1
-        self.id: int = Robot._id_counter
+    def __init__(self, id_number):
+        self.id     = id_number
         self.param  = ParameterStore()
         self.trips  = []
 
