@@ -4,7 +4,7 @@
 #######################################################################
 import random, math
 import time, sys, os
-import json
+import json, csv
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -53,6 +53,17 @@ logtofile = False
 
 clocks['peering'] = Timer(10)
 clocks['block']   = Timer(BLOCK_PERIOD)
+clocks['data_collection'] = Timer(25)
+
+def node_entry(t, x, y):
+    return {'name': 'VERTEX_SE3:QUAT', 't': t, 'x': x, 'y': y}
+
+def edge_entry(t1, t2, x, y):
+    return {'name': 'EDGE_SE3:QUAT', 't1': t1, 't2': t2, 'x': x, 'y': y}
+
+class slam_data:
+    nodes = []
+    edges = []
 
 # /* Experiment State-Machine */
 #######################################################################
@@ -105,33 +116,21 @@ def init():
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
 
-    # # /* Init an instance of the buffer for resources  */
-    # robot.log.info('Initialising resource buffer...')
-    # rb = ResourceBuffer()
-
     # /* Init E-RANDB __listening process and transmit function
     robot.log.info('Initialising RandB board...')
     erb = ERANDB(robot, cp['erbDist'] , cp['erbtFreq'])
 
-    # #/* Init Resource-Sensors */
-    # robot.log.info('Initialising resource sensor...')
-    # rs = ResourceVirtualSensor(robot)
-    
     # /* Init Random-Walk, __walking process */
     robot.log.info('Initialising random-walk...')
-    rw = RandomWalk(robot, cp['scout_speed'])
-
-    # # /* Init Navigation, __navigate process */
-    # robot.log.info('Initialising navigation...')
-    # nav = Navigate(robot, cp['recruit_speed'])
+    rw = RandomWalk(robot, cp['speed'])
 
     # # /* Init odometry sensor */
     # robot.log.info('Initialising odometry...')
     # odo = OdoCompass(robot)
 
-    # # /* Init GPS sensor */
-    # robot.log.info('Initialising gps...')
-    # gps = GPS(robot)
+    # /* Init GPS sensor */
+    robot.log.info('Initialising gps...')
+    gps = GPS(robot)
 
     # /* Init LEDs */
     rgb = RGBLEDs(robot)
@@ -162,27 +161,27 @@ def controlstep():
     ######## ROUTINES #########
     ###########################
 
-    def peering():
+    # def peering():
 
-        # Get the current peers from erb if they have higher difficulty chain
-        erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
+    #     # Get the current peers from erb if they have higher difficulty chain
+    #     erb_enodes = {w3.gen_enode(peer.id) for peer in erb.peers if peer.getData(indices=[1,2]) > w3.get_total_difficulty() or peer.data[3] != w3.mempool_hash(astype='int')}
 
-        # Add peers on the toychain
-        for enode in erb_enodes-set(w3.peers):
-            try:
-                w3.add_peer(enode)
-            except Exception as e:
-                raise e
+    #     # Add peers on the toychain
+    #     for enode in erb_enodes-set(w3.peers):
+    #         try:
+    #             w3.add_peer(enode)
+    #         except Exception as e:
+    #             raise e
             
-        # Remove peers from the toychain
-        for enode in set(w3.peers)-erb_enodes:
-            try:
-                w3.remove_peer(enode)
-            except Exception as e:
-                raise e
+    #     # Remove peers from the toychain
+    #     for enode in set(w3.peers)-erb_enodes:
+    #         try:
+    #             w3.remove_peer(enode)
+    #         except Exception as e:
+    #             raise e
 
-        # Turn on LEDs according to geth peer count
-        rgb.setLED(rgb.all, rgb.presets.get(len(w3.peers), 3*['red']))
+    #     # Turn on LEDs according to geth peer count
+    #     rgb.setLED(rgb.all, rgb.presets.get(len(w3.peers), 3*['red']))
 
     if not startFlag:
         ##########################
@@ -225,32 +224,28 @@ def controlstep():
         for clock in clocks.values():
             clock.time.step()
 
-        # # Perform file logging step
-        # if logs['resources'].query():
-        #     logs['resources'].log([len(rb)])
+        # if clocks['peering'].query():
+        #     peering()
 
-        if clocks['peering'].query():
-            peering()
+        # # Update blockchain state on the robot C++ object
+        # last_block = w3.get_block('last')
+        # robot.variables.set_attribute("block", str(last_block.height))
+        # robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
+        # robot.variables.set_attribute("prod_block", w3.get_produced_block())
+        # robot.variables.set_attribute("block_hash", str(last_block.hash))
+        # robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
+        # robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
+        # robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
 
-        # Update blockchain state on the robot C++ object
-        last_block = w3.get_block('last')
-        robot.variables.set_attribute("block", str(last_block.height))
-        robot.variables.set_attribute("tdiff", str(last_block.total_difficulty))
-        robot.variables.set_attribute("prod_block", w3.get_produced_block())
-        robot.variables.set_attribute("block_hash", str(last_block.hash))
-        robot.variables.set_attribute("state_hash", str(last_block.state.state_hash))
-        robot.variables.set_attribute("mempl_hash", w3.mempool_hash(astype='str'))
-        robot.variables.set_attribute("mempl_size", str(len(w3.mempool)))
-
-        erb.setData(last_block.total_difficulty, indices=[1,2])
-        erb.setData(w3.mempool_hash(astype='int'), indices=3)
+        # erb.setData(last_block.total_difficulty, indices=[1,2])
+        # erb.setData(w3.mempool_hash(astype='int'), indices=3)
 
         #########################################################################################################
         #### State::IDLE
         #########################################################################################################
         if fsm.query(States.IDLE):
 
-            fsm.setState(States.RANDOM, message = "Walking randomely to meet peers")
+            fsm.setState(States.RANDOM, message = "Exploring the environment randomely")
 
         #########################################################################################################
         #### State::RANDOM
@@ -259,28 +254,50 @@ def controlstep():
 
             rw.step()
 
-            if erb.peers:
-                neighbor = random.choice(erb.peers)
-                fsm.setState(States.TRANSACT, message = f"Greeting peer {neighbor.id}", pass_along=neighbor)
-                
+            if clocks['data_collection'].query():
+                t = time.time_ns()
+                x = gps.getPosition().x
+                y = gps.getPosition().y
+
+                if len(slam_data.nodes) > 0:
+                    previous_t = slam_data.nodes[-1]['t']
+                    previous_x = slam_data.nodes[-1]['x']
+                    previous_y = slam_data.nodes[-1]['y']
+
+                slam_data.nodes.append(node_entry(t, x, y))
+                robot.param.set("my_current_timestamp", t)
+
+                if len(slam_data.nodes) > 1:
+                    slam_data.edges.append(edge_entry(previous_t, t, x-previous_x, y-previous_y))
+
+                if erb.peers:
+                    for peer in erb.peers:
+                        vec_to_peer = Vector2D(peer.range, peer.bearing, polar = True)
+                        dx_to_peer = vec_to_peer.x
+                        dy_to_peer = vec_to_peer.y
+                        t_of_peer  = robot.param.get(f"robot_{peer.id}_timestamp")
+                        if t_of_peer:    
+                            print(t_of_peer)
+                            slam_data.edges.append(edge_entry(t, t_of_peer, dx_to_peer, dy_to_peer))
+
         #########################################################################################################
         #### State::TRANSACT  
         #########################################################################################################
 
-        elif fsm.query(States.TRANSACT):
+        # elif fsm.query(States.TRANSACT):
 
-            rw.step()
+        #     rw.step()
 
-            if not txs['hi']:
-                neighbor = fsm.pass_along
+        #     if not txs['hi']:
+        #         neighbor = fsm.pass_along
 
-                txdata = {'function': 'Hello', 'inputs': [neighbor.id]}
-                txs['hi'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
-                w3.send_transaction(txs['hi'])
+        #         txdata = {'function': 'Hello', 'inputs': [neighbor.id]}
+        #         txs['hi'] = Transaction(sender = me.id, data = txdata, timestamp = w3.custom_timer.time())
+        #         w3.send_transaction(txs['hi'])
 
-            if w3.get_transaction_receipt(txs['hi'].id):
-                txs['hi'] = None
-                fsm.setState(States.RANDOM, message = "Transaction success")
+        #     if w3.get_transaction_receipt(txs['hi'].id):
+        #         txs['hi'] = None
+        #         fsm.setState(States.RANDOM, message = "Transaction success")
 
 #########################################################################################################################
 #### RESET-DESTROY STEPS ################################################################################################
@@ -297,40 +314,57 @@ def destroy():
         if len(txs) != len(set([tx.id for tx in txs])):
             print(f'REPEATED TRANSACTIONS ON CHAIN: #{len(txs)-len(set([tx.id for tx in txs]))}')
 
-        for key, value in w3.sc.state.items():
-            print(f"{key}: {value}")
+        # for key, value in w3.sc.state.items():
+        #     print(f"{key}: {value}")
 
-        name   = 'block.csv'
-        header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
-        logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+        # Prepare CSV filename
+        csv_filename = os.path.join(experimentFolder, 'logs', 'slam_data_all.csv')
+        os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
 
-        name   = 'sc.csv'
-        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
-        logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+        with open(csv_filename, mode='a', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=' ')
 
-        # Log each block over the operation of the swarm
-        for block in w3.chain:
-            logs['block'].log(
-                [w3.custom_timer.time()-block.timestamp, 
-                block.timestamp, 
-                block.height, 
-                block.hash, 
-                block.parent_hash, 
-                block.difficulty,
-                block.total_difficulty, 
-                sys.getsizeof(block) / 1024, 
-                len(block.data), 
-                0
-                ])
+            row_id = 0
+            for node in slam_data.nodes:
+                writer.writerow([row_id, node['name'], node['t'], '', node['x'], node['y'], 0, 0, 0, 0, 0])
+                row_id += 1
+
+            for edge in slam_data.edges:
+                writer.writerow([row_id, edge['name'], edge['t1'], edge['t2'], edge['x'], edge['y'], 0, 0, 0, 0, 0])
+                row_id += 1
+
+
+        # name   = 'block.csv'
+        # header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
+        # logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+
+        # name   = 'sc.csv'
+        # header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
+        # logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+
+        # # Log each block over the operation of the swarm
+        # for block in w3.chain:
+        #     logs['block'].log(
+        #         [w3.custom_timer.time()-block.timestamp, 
+        #         block.timestamp, 
+        #         block.height, 
+        #         block.hash, 
+        #         block.parent_hash, 
+        #         block.difficulty,
+        #         block.total_difficulty, 
+        #         sys.getsizeof(block) / 1024, 
+        #         len(block.data), 
+        #         0
+        #         ])
             
-            logs['sc'].log(
-                [block.timestamp, 
-                block.height, 
-                block.hash, 
-                block.parent_hash, 
-                block.state.balances.get(me.id,0),
-                block.state.n
-                ])
+        #     logs['sc'].log(
+        #         [block.timestamp, 
+        #         block.height, 
+        #         block.hash, 
+        #         block.parent_hash, 
+        #         block.state.balances.get(me.id,0),
+        #         block.state.n
+        #         ])
 
         
     print('Killed robot '+ me.id)
