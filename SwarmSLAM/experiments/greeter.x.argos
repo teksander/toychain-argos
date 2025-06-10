@@ -83,7 +83,7 @@
     </distribute> -->
 
 <box id="b0" size="${SIDEBOX},${SIDEBOX},0.5" movable="false">
-  <body position="-2.4,  1.9, 0" orientation="0,0,0"/>
+  <body position="-2.2,  1.9, 0" orientation="0,0,0"/>
 </box>
 <box id="b1" size="${SIDEBOX},${SIDEBOX},0.5" movable="false">
   <body position=" 1.2, -2.6, 0" orientation="0,0,0"/>
@@ -99,16 +99,16 @@
 </box>
 
 <cylinder id="c0" height="0.5" radius="${DIAMCYL}" movable="false">
-  <body position="-2.5, -1.8, 0" orientation="0,0,0"/>
+  <body position="-2.2, -1.8, 0" orientation="0,0,0"/>
 </cylinder>
 <cylinder id="c1" height="0.5" radius="${DIAMCYL}" movable="false">
   <body position=" 1.7,  1.5, 0" orientation="0,0,0"/>
 </cylinder>
 <cylinder id="c2" height="0.5" radius="${DIAMCYL}" movable="false">
-  <body position="-0.9,  2.5, 0" orientation="0,0,0"/>
+  <body position="-0.9,  2.2, 0" orientation="0,0,0"/>
 </cylinder>
 <cylinder id="c3" height="0.5" radius="${DIAMCYL}" movable="false">
-  <body position=" 2.8, -0.4, 0" orientation="0,0,0"/>
+  <body position=" 2.2, -0.4, 0" orientation="0,0,0"/>
 </cylinder>
 <cylinder id="c4" height="0.5" radius="${DIAMCYL}" movable="false">
   <body position=" 0.5, -0.5, 0" orientation="0,0,0"/>

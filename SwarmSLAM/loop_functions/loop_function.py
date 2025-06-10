@@ -70,7 +70,7 @@ def pre_step():
         for other_robot in allrobots:
             other_id = other_robot.param.get("id")
 
-            robot.param.set(f"robot_{other_id}_timestamp", other_robot.param.get('my_current_timestamp'))
+            robot.param.set(f"last_node_{other_id}", other_robot.param.get('my_last_node'))
 
 def post_step():
     global startFlag, clocks, accums

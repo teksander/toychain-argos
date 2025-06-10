@@ -53,7 +53,8 @@ logtofile = False
 
 clocks['peering'] = Timer(10)
 clocks['block']   = Timer(BLOCK_PERIOD)
-clocks['data_collection'] = Timer(25)
+clocks['data_collection'] = Timer(5)
+clocks['loop_closures'] = Timer(25)
 
 def node_entry(t, x, y):
     return {'name': 'VERTEX_SE3:QUAT', 't': t, 'x': x, 'y': y}
@@ -89,6 +90,7 @@ def init():
     robot.variables.set_attribute("state_hash", str(hash("genesis")))
     robot.variables.set_attribute("mempl_hash", str(hash("genesis")))
     robot.variables.set_attribute("mempl_size", "0")
+    robot.param.set("my_last_node", (0,0,0))
 
     # /* Initialize Console Logging*/
     #######################################################################
@@ -265,20 +267,22 @@ def controlstep():
                     previous_y = slam_data.nodes[-1]['y']
 
                 slam_data.nodes.append(node_entry(t, x, y))
-                robot.param.set("my_current_timestamp", t)
+                robot.param.set("my_last_node", (t,x,y))
 
                 if len(slam_data.nodes) > 1:
                     slam_data.edges.append(edge_entry(previous_t, t, x-previous_x, y-previous_y))
 
-                if erb.peers:
-                    for peer in erb.peers:
-                        vec_to_peer = Vector2D(peer.range, peer.bearing, polar = True)
-                        dx_to_peer = vec_to_peer.x
-                        dy_to_peer = vec_to_peer.y
-                        t_of_peer  = robot.param.get(f"robot_{peer.id}_timestamp")
-                        if t_of_peer:    
-                            print(t_of_peer)
-                            slam_data.edges.append(edge_entry(t, t_of_peer, dx_to_peer, dy_to_peer))
+                if clocks['loop_closures'].query():
+                    if erb.peers:
+                        for peer in erb.peers:
+                            # vec_to_peer = Vector2D(peer.range, peer.bearing, polar = True)
+                            # dx_to_peer = vec_to_peer.x
+                            # dy_to_peer = vec_to_peer.y
+                            t_p, x_p, y_p = robot.param.get(f"last_node_{peer.id}")
+
+                            if t_p:    
+                                print(t_p)
+                                slam_data.edges.append(edge_entry(t, t_p, x_p-x, y_p-y))
 
         #########################################################################################################
         #### State::TRANSACT  

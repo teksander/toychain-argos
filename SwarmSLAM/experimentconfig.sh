@@ -14,10 +14,10 @@ export SCNAME="greeter"
 export SCFILE="${EXPERIMENTFOLDER}/scs/${SCNAME}.py" 
 
 # [ARGOS]
-export NUM1=15
+export NUM1=5
 export CON1="${EXPERIMENTFOLDER}/controllers/main.py"
 
-export RABRANGE="0.6"
+export RABRANGE="1"
 export WHEELNOISE="0"
 export TPS=10
 # export DENSITY="1"
@@ -43,8 +43,8 @@ export MAXWORKERS=15
 
 # [OTHER]
 export SEED=1500
-export TIMELIMIT=50000
-export LENGTH=5000
+export TIMELIMIT=3000
+export LENGTH=600
 export SLEEPTIME=5
 export REPS=5
 export NOTES="e.g. description of the experiment"
