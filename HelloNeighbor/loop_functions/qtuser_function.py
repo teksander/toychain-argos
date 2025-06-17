@@ -4,20 +4,22 @@
 #######################################################################
 import random, math
 import sys, os
-import hashlib
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
 sys.path += [mainFolder, experimentFolder]
 
-from controllers.actusensors.groundsensor import Resource
 from controllers.utils import Vector2D
 from controllers.params import params as cp
+
+from loop_functions.utils import hash_to_rgb
 from loop_functions.params import params as lp
 
-if eval(os.environ['RUN_TKUSER']):
-    from loop_functions.tkuser_function import BlockchainGUI
-    import threading
+from toychain.src.utils.helpers import gen_enode
+from toychain.src.Node import Node
+from toychain.src.Block import Block
+from toychain.src.consensus.ProofOfAuth import ProofOfAuthority
+from scs.greeter import Contract as State
 
 lp['generic']['show_rays'] = False
 lp['generic']['show_pos'] = True
@@ -28,34 +30,13 @@ rob_diam   = 0.07/2
 
 # /* Global Functions */
 #######################################################################
-global robot, environment, tkuser
+global robot, environment
 
-def hash_to_rgb(hash_value):
-    # Generate a hash object from the input value
-    hash_object = hashlib.sha256(hash_value.encode())
+# Initialize the monitoring glassnode
+enodes  = [gen_enode(i+1) for i in range(int(lp['environ']['NUMROBOTS']))]
+GENESIS = Block(0, 0000, [], enodes, 0, 0, 0, nonce = 1, state = State())
 
-    # Get the first 3 bytes of the hash digest
-    hash_bytes = hash_object.digest()[:3]
-
-    # Convert the bytes to an RGB color value
-    r = hash_bytes[0]
-    g = hash_bytes[1]
-    b = hash_bytes[2]
-
-    # Return the RGB color value as a tuple
-    return [r, g, b]
-
-# /* tk_user Function */
-#######################################################################
-
-if eval(os.environ['RUN_TKUSER']):
-    def run_tkuser():
-        global tkuser
-        tkuser = BlockchainGUI()
-        tkuser.start()
-    tkuser_thread = threading.Thread(target=run_tkuser, daemon=True)
-    tkuser_thread.start()
-
+glassnode = Node('0', '127.0.0.1', 1233, ProofOfAuthority(genesis = GENESIS))
 
 # /* ARGoS Functions */
 #######################################################################
@@ -64,16 +45,16 @@ def init():
     pass
     
 def draw_in_world():
-    pass
+
+    # Update glassnode
+	glassnode.step()
+	if glassnode.custom_timer.time() == 10:
+		glassnode.add_peers(enodes)
+		glassnode.start()
+		glassnode.run_explorer()
 	
 def draw_in_robot():
-
-    if "tkuser" in globals():
-        prod_block = robot.variables.get_attribute("prod_block")
-        if prod_block:
-            tkuser.add_block(prod_block)
-
-
+    
     # Draw block hash and state hash with circles
     color_state = hash_to_rgb(robot.variables.get_attribute("state_hash"))
     color_block = hash_to_rgb(robot.variables.get_attribute("block_hash"))

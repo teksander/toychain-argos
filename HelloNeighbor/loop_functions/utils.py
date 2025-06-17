@@ -4,6 +4,7 @@
 #######################################################################
 import random, math
 import sys, os, psutil
+import hashlib
 
 mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
@@ -41,3 +42,18 @@ def getCPUPercent():
 
 def getRAMPercent():
     return psutil.virtual_memory().percent
+
+def hash_to_rgb(hash_value):
+    # Generate a hash object from the input value
+    hash_object = hashlib.sha256(hash_value.encode())
+
+    # Get the first 3 bytes of the hash digest
+    hash_bytes = hash_object.digest()[:3]
+
+    # Convert the bytes to an RGB color value
+    r = hash_bytes[0]
+    g = hash_bytes[1]
+    b = hash_bytes[2]
+
+    # Return the RGB color value as a tuple
+    return [r, g, b]
