@@ -63,7 +63,7 @@ run() {
 
 	else
 		for REP in $(seq 1 ${REPS}); do
-			echo "Runing experiment ${1}"
+			echo "Running experiment ${1}"
 
 			# Perform experiment
 			. starter -r -sz
@@ -79,17 +79,20 @@ run() {
 
 
 # DEFINE EXPERIMENT
-EXP=EXP1
+EXP=test
+CFG=test
 config "REPS" 5
-config "LENGTH" 10
+config "LENGTH" 100
 config "NOTES" "\"Variation of utility of the resource between 100 and 400\""
 
-for L in $(seq 100 50 400); do 
-	CFG=${L}
-	config "LENGTH" ${L}
-	wait
-	run    "${EXP}/${CFG}"
-done
+run "${EXP}/${CFG}"
+
+# for L in $(seq 100 50 400); do 
+# 	CFG=${L}
+# 	config "LENGTH" ${L}
+# 	wait
+# 	run    "${EXP}/${CFG}"
+# done
 
 
 # # DEFINE CONFIGURATION 1
