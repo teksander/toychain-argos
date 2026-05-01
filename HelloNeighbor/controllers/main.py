@@ -102,7 +102,7 @@ def init():
 
     # /* Init web3.py */
     robot.log.info('Initialising Python Geth Console...')
-    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(genesis = GENESIS))
+    w3 = Node(robotID, robotIP, 1233 + int(robotID), ProofOfAuthority(genesis = GENESIS), publish=True)
 
     # /* Init an instance of peer for this Pi-Puck */
     me = Peer(robotID, robotIP, w3.enode, w3.key)
@@ -295,44 +295,44 @@ def destroy():
     if startFlag:
         w3.stop_mining()
 
-        txs = w3.get_all_transactions()
-        if len(txs) != len(set([tx.id for tx in txs])):
-            print(f'REPEATED TRANSACTIONS ON CHAIN: #{len(txs)-len(set([tx.id for tx in txs]))}')
+        # txs = w3.get_all_transactions()
+        # if len(txs) != len(set([tx.id for tx in txs])):
+        #     print(f'REPEATED TRANSACTIONS ON CHAIN: #{len(txs)-len(set([tx.id for tx in txs]))}')
 
-        for key, value in w3.sc.state.items():
-            print(f"{key}: {value}")
+        # for key, value in w3.sc.state.items():
+        #     print(f"{key}: {value}")
 
-        name   = 'block.csv'
-        header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
-        logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+        # name   = 'block.csv'
+        # header = ['TELAPSED','TIMESTAMP','BLOCK', 'HASH', 'PHASH', 'DIFF', 'TDIFF', 'SIZE','TXS', 'UNC', 'PENDING', 'QUEUED']
+        # logs['block'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-        name   = 'sc.csv'
-        header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
-        logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
+        # name   = 'sc.csv'
+        # header = ['TIMESTAMP', 'BLOCK', 'HASH', 'PHASH', 'BALANCE', 'TX_COUNT'] 
+        # logs['sc'] = Logger(f"{experimentFolder}/logs/{me.id}/{name}", header, ID = me.id)
 
-        # Log each block over the operation of the swarm
-        for block in w3.chain:
-            logs['block'].log(
-                [w3.custom_timer.time()-block.timestamp, 
-                block.timestamp, 
-                block.height, 
-                block.hash, 
-                block.parent_hash, 
-                block.difficulty,
-                block.total_difficulty, 
-                sys.getsizeof(block) / 1024, 
-                len(block.data), 
-                0
-                ])
+        # # Log each block over the operation of the swarm
+        # for block in w3.chain:
+        #     logs['block'].log(
+        #         [w3.custom_timer.time()-block.timestamp, 
+        #         block.timestamp, 
+        #         block.height, 
+        #         block.hash, 
+        #         block.parent_hash, 
+        #         block.difficulty,
+        #         block.total_difficulty, 
+        #         sys.getsizeof(block) / 1024, 
+        #         len(block.data), 
+        #         0
+        #         ])
             
-            logs['sc'].log(
-                [block.timestamp, 
-                block.height, 
-                block.hash, 
-                block.parent_hash, 
-                block.state.balances.get(me.id,0),
-                block.state.n
-                ])
+        #     logs['sc'].log(
+        #         [block.timestamp, 
+        #         block.height, 
+        #         block.hash, 
+        #         block.parent_hash, 
+        #         block.state.balances.get(me.id,0),
+        #         block.state.n
+        #         ])
 
         
     print('Killed robot '+ me.id)

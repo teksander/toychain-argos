@@ -11,8 +11,9 @@ mainFolder = os.environ['MAINFOLDER']
 experimentFolder = os.environ['EXPERIMENTFOLDER']
 sys.path += [mainFolder, experimentFolder]
 
-from controllers.utils import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
 from controllers.params import params as cp
+from controllers.utils import Vector2D, Logger, Timer, Accumulator, mydict, identifiersExtract
+
 from loop_functions.params import params as lp
 from loop_functions.utils import *
 
@@ -73,15 +74,15 @@ def post_step():
     if not startFlag:
         startFlag = True
 
-    # Logging of simulation simulation (RAM, CPU, TPS)   
-    if clocks['simlog'].query():
-        RAM = getRAMPercent()
-        CPU = getCPUPercent()
-    TPS = round(1/(time.time()-logs['simulation'].latest))
-    logs['simulation'].log([TPS, CPU, RAM])
+    # # Logging of simulation simulation (RAM, CPU, TPS)   
+    # if clocks['simlog'].query():
+    #     RAM = getRAMPercent()
+    #     CPU = getCPUPercent()
+    # TPS = round(1/(time.time()-logs['simulation'].latest))
+    # logs['simulation'].log([TPS, CPU, RAM])
 
-    # Logging of loop function variables
-    logs['loop'].log([])
+    # # Logging of loop function variables
+    # logs['loop'].log([])
 
 def is_experiment_finished():
     pass

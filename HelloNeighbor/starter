@@ -33,25 +33,16 @@ echo "Cleaning logs folder..."
 
 eval $(echo "rm -rf logs/{$(($NUMROBOTS+1))..1000}")
 
+if [ "$EXPLORER" = "True" ]; then
+    echo "+-----------------------------------------------------------+"
+    echo "Starting Toychain explorer at http://${EXPLORER_HOST}:${EXPLORER_PORT}"
+    echo "+-----------------------------------------------------------+"
 
-# for opt in "$@"
-# do
-# if [[ $opt == "--reset" || $opt == "-r" ]]; then
+    python3 "$EXPLORER_PATH/server.py" --host "$EXPLORER_HOST" --port "$EXPLORER_PORT" &
 
-#     echo "+-----------------------------------------------------------+"
-#     echo "Resetting Geth..."
-#     ./reset-geth
-# fi
-# done
-
-# echo "+-----------------------------------------------------------+"
-# echo "Waiting for web3 to respond..."
-
-# ready=0
-# while [[ $ready != $NUMROBOTS ]]; do
-#     . test-tcp 4000
-#     sleep 0.5
-# done
+    EXPLORER_PID=$!
+    trap "kill $EXPLORER_PID 2>/dev/null" EXIT
+fi
 
 echo "+-----------------------------------------------------------+"
 echo "Starting Experiment"
